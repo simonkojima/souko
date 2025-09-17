@@ -39,14 +39,14 @@ class BaseDataset:
     def _get_epochs(self, subject):
         raise NotImplementedError()
 
-    def _get_covs(self, subject):
-        raise NotImplementedError()
-
     def _check_subject(self, subject):
         if isinstance(subject, int) is False:
             raise ValueError("subject must be int.")
         if subject not in self.subjects_list:
             raise ValueError(f"Invalid subject: {subject}")
+
+    def get_proc_list(self, data_type):
+        return os.listdir(self.base_dir / "derivatives" / data_type)
 
     def get_raw(self, subject):
         self._check_subject(subject)
@@ -149,162 +149,6 @@ class BaseDataset:
 
         return epochs
 
-    def _concat_covs(self, data, mode):
-        match mode:
-            case "runs":
-                new_data = {}
-                for session in self.sessions_list:
-                    covs_concat = []
-                    y_concat = []
-                    for run in list(data[session].keys()):
-                        covs_concat.append(data[session][run]["covs"])
-                        y_concat.append(data[session][run]["y"])
-                    covs_concat = np.concatenate(covs_concat, axis=0)
-                    y_concat = np.concatenate(y_concat, axis=0)
-
-                    new_data[session] = {}
-                    new_data[session]["covs"] = covs_concat
-                    new_data[session]["y"] = y_concat
-            case "sessions":
-                new_data = {}
-                covs_concat = []
-                y_concat = []
-
-                for session in self.sessions_list:
-                    covs_concat.append(data[session]["covs"])
-                    y_concat.append(data[session]["y"])
-                covs_concat = np.concatenate(covs_concat, axis=0)
-                y_concat = np.concatenate(y_concat, axis=0)
-
-                new_data["covs"] = covs_concat
-                new_data["y"] = y_concat
-
-        return new_data
-
-    def ___get_covs(
-        self,
-        subject,
-        tmin,
-        tmax,
-        picks="eeg",
-        l_freq=8,
-        h_freq=30,
-        order=4,
-        baseline=None,
-        resample=128,
-        tmin_epochs=-5.0,
-        tmax_epochs=7.0,
-        estimator="scm",
-        cache=True,
-        force_update=False,
-        concat_runs=False,
-        concat_sessions=False,
-        **kwargs,
-    ):
-
-        self._check_subject(subject)
-
-        if cache is True:
-            params = utils.encode_params(
-                dict(
-                    tmin=tmin,
-                    tmax=tmax,
-                    tmin_epochs=tmin_epochs,
-                    tmax_epochs=tmax_epochs,
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                    order=order,
-                    baseline=baseline,
-                    resample=resample,
-                    picks=picks,
-                    estimator=estimator,
-                )
-            )
-
-            covs_base = (
-                self.base_dir / "derivatives" / "covs" / params / f"sub-{subject}"
-            )
-
-            files = check_files(covs_base, "-covs.npy")
-
-            if (files is not None) and (force_update is False):
-                data = {}
-                for file in files:
-
-                    files_meta = pd.read_csv(covs_base / "files.tsv", sep="\t")
-                    sessions = files_meta["session"].tolist()
-                    runs = files_meta["run"].tolist()
-
-                    for session in sessions:
-                        data = {session: {}}
-                        for run in runs:
-                            data[session][run] = {}
-
-                    fnames_covs = files_meta["fname_covs"].tolist()
-                    fnames_y = files_meta["fname_y"].tolist()
-
-                    for session, run, fname_covs, fname_y in zip(
-                        sessions, runs, fnames_covs, fnames_y
-                    ):
-                        data[session][run]["covs"] = np.load(covs_base / fname_covs)
-                        data[session][run]["y"] = np.load(covs_base / fname_y)
-            else:
-                data = self._get_covs(
-                    subject,
-                    tmin=tmin,
-                    tmax=tmax,
-                    picks=picks,
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                    order=order,
-                    tmin_epochs=tmin_epochs,
-                    tmax_epochs=tmax_epochs,
-                    baseline=baseline,
-                    resample=resample,
-                    **kwargs,
-                )
-
-                covs_base.mkdir(parents=True, exist_ok=True)
-
-                files_meta = {"session": [], "run": [], "fname_covs": [], "fname_y": []}
-                for session in self.sessions_list:
-                    for run, d in data[session].items():
-                        np.save(covs_base / f"{session}_{run}-covs.npy", d["covs"])
-                        np.save(covs_base / f"{session}_{run}-y.npy", d["y"])
-                        files_meta["session"].append(session)
-                        files_meta["run"].append(run)
-                        files_meta["fname_covs"].append(f"{session}_{run}-covs.npy")
-                        files_meta["fname_y"].append(f"{session}_{run}-y.npy")
-
-                files_meta = pd.DataFrame(files_meta)
-                files_meta.to_csv(covs_base / "files.tsv", sep="\t", index=False)
-
-        else:
-
-            data = self._get_covs(
-                subject,
-                tmin=tmin,
-                tmax=tmax,
-                picks=picks,
-                l_freq=l_freq,
-                h_freq=h_freq,
-                order=order,
-                tmin_epochs=tmin_epochs,
-                tmax_epochs=tmax_epochs,
-                baseline=baseline,
-                resample=resample,
-                **kwargs,
-            )
-
-        if concat_runs:
-            new_data = self._concat_covs(data, "runs")
-            data = new_data
-            if concat_sessions:
-                new_data = self._concat_covs(data, "sessions")
-                data = new_data
-
-        return data
-
     def _get_data(
         self,
         subject,
@@ -314,14 +158,21 @@ class BaseDataset:
         func_get_data=None,
         func_save_data=None,
         func_load_data=None,
-        cache=True,
-        force_update=False,
+        **kwargs,
     ):
         self._check_subject(subject)
         m.patch()
 
+        cache = kwargs.get("cache")
+        force_update = kwargs.get("force_update")
+        concat_runs = kwargs.get("concat_runs")
+        concat_sessions = kwargs.get("concat_sessions")
+
         if cache is True:
-            proc_id = utils.encode_params(params)
+            if params is not None:
+                proc_id = utils.encode_params(params)
+            else:
+                proc_id = "None"
 
             save_base = (
                 self.base_dir / "derivatives" / data_type / proc_id / f"sub-{subject}"
@@ -330,13 +181,14 @@ class BaseDataset:
             files = check_files(save_base, suffix)
 
             if (files is not None) and (force_update is False):
-                if func_load_data is not None:
+                if func_load_data is None:
                     with open(save_base / f"sub-{subject}.msgpack", "rb") as f:
                         data = msgpack.load(f, strict_map_key=False)
                 else:
                     data = func_load_data(save_base)
             else:
                 data = func_get_data(subject, params)
+                save_base.mkdir(parents=True, exist_ok=True)
 
                 if func_save_data is not None:
                     func_save_data(data, save_base)
@@ -346,5 +198,20 @@ class BaseDataset:
 
         else:
             data = func_get_data(subject, params)
+
+        if concat_runs:
+            for session in self.sessions_list:
+                values = list(data[session].values())
+                try:
+                    data[session] = np.concatenate(values, axis=0)
+                except:
+                    data[session] = values
+
+            if concat_sessions:
+                values = list(data.values())
+                try:
+                    data = np.concatenate(values, axis=0)
+                except:
+                    data = values
 
         return data

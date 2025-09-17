@@ -48,10 +48,30 @@ def encode_params(params):
     sorted_params = dict(sorted(params_dict.items(), key=lambda x: x[0]))
     proc_id = []
     for k, v in sorted_params.items():
-        proc_id.append(f"{k}-{v}")
-    proc_id = "_".join(proc_id)
+        proc_id.append(f"{k}={v}")
+    proc_id = "__".join(proc_id)
 
     return proc_id
+
+
+def decode_params(params):
+    pairs = params.split("__")
+
+    data = {}
+    for pair in pairs:
+
+        k = pair.split("=")[0]
+        v = pair.split("=")[1]
+
+        try:
+            v = float(v)
+        except:
+            if v == "None":
+                v = None
+
+        data[k] = v
+
+    return data
 
 
 def get_labels_from_epochs(epochs, label_keys={"event:left": 0, "event:right": 1}):
