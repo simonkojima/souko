@@ -477,10 +477,6 @@ class BaseDataset:
         return data
 
     def _get_tfrs(self, subject, params, n_jobs):
-        print(params)
-
-        print(subject)
-        print(n_jobs)
 
         l_freq = params["l_freq"]
         h_freq = params["h_freq"]
