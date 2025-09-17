@@ -400,8 +400,6 @@ class BaseDataset:
                 resample=resample,
                 tmin_epochs=tmin_epochs,
                 tmax_epochs=tmax_epochs,
-                cache=cache,
-                force_update=force_update,
                 estimator=estimator,
                 rescaling=rescaling,
                 online_rpa=online_rpa,
