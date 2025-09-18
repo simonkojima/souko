@@ -38,6 +38,17 @@ def sha256_short(s: str, n: int = 12):
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:n]
 
 
+def deep_sort(obj):
+    if isinstance(obj, dict):
+        return {k: deep_sort(v) for k, v in sorted(obj.items(), key=lambda x: x[0])}
+    elif isinstance(obj, list):
+        return [deep_sort(v) for v in obj]
+    elif isinstance(obj, tuple):
+        return tuple(deep_sort(v) for v in obj)
+    else:
+        return obj
+
+
 def encode_params(params):
 
     params = type_params(params)
@@ -49,10 +60,15 @@ def encode_params(params):
 
     from ..__init__ import __version__
 
+    sorted_params = deep_sort(params_dict)
+
+    """
     sorted_params = dict(sorted(params_dict.items(), key=lambda x: x[0]))
-    for k, v in sorted_params.items():
-        if isinstance(v, dict):
-            sorted_params[k] = dict(sorted(v.items(), key=lambda x: x[0]))
+    while True:
+        for k, v in sorted_params.items():
+            if isinstance(v, dict):
+                sorted_params[k] = dict(sorted(v.items(), key=lambda x: x[0]))
+    """
 
     hash = sha256_short(json.dumps(sorted_params))
 

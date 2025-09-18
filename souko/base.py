@@ -11,6 +11,39 @@ import msgpack_numpy as m
 import numpy as np
 
 
+def load_dict(data, key, default):
+    if key in list(data.keys()):
+        return data[key]
+    else:
+        return default
+
+
+def set_dict(params, key, value):
+    if key not in list(params.keys()):
+        params[key] = value
+    return params
+
+
+def proc_params_epochs(params):
+    params = set_dict(params, "l_freq", 1.0)
+    params = set_dict(params, "h_freq", 45.0)
+    params = set_dict(params, "method", "iir")
+    params = set_dict(
+        params,
+        "iir_params",
+        {"ftype": "butter", "order": 4, "btype": "bandpass"},
+    )
+    params = set_dict(params, "phase", "zero")
+    params = set_dict(params, "fir_window", "hamming")
+    params = set_dict(params, "fir_design", "firwin")
+    params = set_dict(params, "tmin", -0.2)
+    params = set_dict(params, "tmax", 0.5)
+    params = set_dict(params, "baseline", None)
+    params = set_dict(params, "resample", 128)
+
+    return params
+
+
 def save_mne_objs(data, save_base, suffix):
     files = {"session": [], "run": [], "fname": []}
     for session, session_data in data.items():
@@ -259,38 +292,15 @@ class BaseDataset:
         return data
 
     def _get_covs(self, subject, params):
-        l_freq = params["l_freq"]
-        h_freq = params["h_freq"]
+        params_epochs = params["params_epochs"]
+        params_epochs = proc_params_epochs(params_epochs)
 
-        method = params["method"]
-        iir_params = params["iir_params"]
-        phase = params["phase"]
-        fir_window = params["fir_window"]
-        fir_design = params["fir_design"]
-
-        tmin_epochs = params["tmin_epochs"]
-        tmax_epochs = params["tmax_epochs"]
-        baseline = params["baseline"]
-        resample = params["resample"]
-        picks = params["picks"]
         tmin = params["tmin"]
         tmax = params["tmax"]
+        picks = params["picks"]
         estimator = params["estimator"]
 
-        epochs = self.get_epochs(
-            subject=subject,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method=method,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            tmin=tmin_epochs,
-            tmax=tmax_epochs,
-            baseline=baseline,
-            resample=resample,
-        )
+        epochs = self.get_epochs(subject=subject, **params_epochs)
 
         import pyriemann
 
@@ -309,47 +319,23 @@ class BaseDataset:
 
     def _get_covs_rpa(self, subject, params, cache=True, force_update=False):
 
+        params_epochs = params["params_epochs"]
+        params_epochs = proc_params_epochs(params_epochs)
+
         tmin = params["tmin"]
         tmax = params["tmax"]
         picks = params["picks"]
-        l_freq = params["l_freq"]
-        h_freq = params["h_freq"]
-
-        method = params["method"]
-        iir_params = params["iir_params"]
-        phase = params["phase"]
-        fir_window = params["fir_window"]
-        fir_design = params["fir_design"]
-
-        baseline = params["baseline"]
-        resample = params["resample"]
-        tmin_epochs = params["tmin_epochs"]
-        tmax_epochs = params["tmax_epochs"]
         estimator = params["estimator"]
 
         rescaling = params["rescaling"]
         online_rpa = params["online_rpa"]
-
-        if online_rpa:
-            pass
-            # raise NotImplementedError("rpa_online is not implemented")
 
         covs = self.get_covs(
             subject=subject,
             tmin=tmin,
             tmax=tmax,
             picks=picks,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method=method,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            baseline=baseline,
-            resample=resample,
-            tmin_epochs=tmin_epochs,
-            tmax_epochs=tmax_epochs,
+            params_epochs=params_epochs,
             estimator=estimator,
             cache=cache,
             force_update=force_update,
@@ -369,47 +355,32 @@ class BaseDataset:
     def get_covs(
         self,
         subject,
-        tmin,
-        tmax,
-        picks="eeg",
-        l_freq=8,
-        h_freq=30,
-        method="iir",
-        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
-        phase="zero",
-        fir_window="hamming",
-        fir_design="firwin",
-        baseline=None,
-        resample=128,
-        tmin_epochs=-5.0,
-        tmax_epochs=7.0,
-        estimator="scm",
-        cache=True,
-        force_update=False,
-        concat_runs=False,
-        concat_sessions=False,
-        recentering=False,
-        rescaling=False,
-        online_rpa=False,
+        **kwargs,
     ):
+        params_epochs = kwargs.get("params_epochs", {})
+        params_epochs = proc_params_epochs(params_epochs)
+
+        picks = kwargs.get("picks", "eeg")
+        tmin = kwargs.get("tmin", 0.0)
+        tmax = kwargs.get("tmax", 1.0)
+        estimator = kwargs.get("estimator", "scm")
+
+        recentering = kwargs.get("recentering", False)
+        rescaling = kwargs.get("rescaling", False)
+        online_rpa = kwargs.get("online_rpa", False)
+
+        cache = kwargs.get("cache", True)
+        force_update = kwargs.get("force_update", False)
+        concat_runs = kwargs.get("concat_runs", False)
+        concat_sessions = kwargs.get("concat_sessions", False)
 
         if recentering is False:
             data_type = "covs"
             params = dict(
+                params_epochs=params_epochs,
                 tmin=tmin,
                 tmax=tmax,
                 picks=picks,
-                l_freq=l_freq,
-                h_freq=h_freq,
-                method=method,
-                iir_params=iir_params,
-                phase=phase,
-                fir_window=fir_window,
-                fir_design=fir_design,
-                baseline=baseline,
-                resample=resample,
-                tmin_epochs=tmin_epochs,
-                tmax_epochs=tmax_epochs,
                 estimator=estimator,
             )
 
@@ -427,20 +398,10 @@ class BaseDataset:
             data_type = "covs-rpa"
 
             params = dict(
+                params_epochs=params_epochs,
                 tmin=tmin,
                 tmax=tmax,
                 picks=picks,
-                l_freq=l_freq,
-                h_freq=h_freq,
-                method=method,
-                iir_params=iir_params,
-                phase=phase,
-                fir_window=fir_window,
-                fir_design=fir_design,
-                baseline=baseline,
-                resample=resample,
-                tmin_epochs=tmin_epochs,
-                tmax_epochs=tmax_epochs,
                 estimator=estimator,
                 rescaling=rescaling,
                 online_rpa=online_rpa,
@@ -533,19 +494,8 @@ class BaseDataset:
 
     def _get_tfrs(self, subject, params, n_jobs):
 
-        l_freq = params["l_freq"]
-        h_freq = params["h_freq"]
-        tmin_epochs = params["tmin_epochs"]
-        tmax_epochs = params["tmax_epochs"]
-        order = params["order"]
-        baseline = params["baseline"]
-        resample = params["resample"]
-
-        method_epochs = params["method_epochs"]
-        iir_params = params["iir_params"]
-        phase = params["phase"]
-        fir_window = params["fir_window"]
-        fir_design = params["fir_design"]
+        params_epochs = params["params_epochs"]
+        params_epochs = proc_params_epochs(params_epochs)
 
         method = params["method"]
         freqs = params["freqs"]
@@ -553,20 +503,7 @@ class BaseDataset:
         use_fft = params["use_fft"]
         decim = params["decim"]
 
-        epochs = self.get_epochs(
-            subject=subject,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method=method_epochs,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            tmin=tmin_epochs,
-            tmax=tmax_epochs,
-            baseline=baseline,
-            resample=resample,
-        )
+        epochs = self.get_epochs(subject=subject, **params_epochs)
 
         if isinstance(freqs, range):
             freqs = list(freqs)
@@ -596,22 +533,28 @@ class BaseDataset:
     def get_epochs(
         self,
         subject,
-        l_freq=1.0,
-        h_freq=45.0,
-        method="iir",
-        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
-        phase="zero",
-        fir_window="hamming",
-        fir_design="firwin",
-        tmin=-0.2,
-        tmax=0.5,
-        baseline=None,
-        resample=128,
-        cache=True,
-        force_update=False,
-        concat_runs=False,
-        concat_sessions=False,
+        **kwargs,
     ):
+
+        l_freq = kwargs.get("l_freq", 1.0)
+        h_freq = kwargs.get("h_freq", 45.0)
+        method = kwargs.get("method", "iir")
+        iir_params = kwargs.get(
+            "iir_params",
+            {"ftype": "butter", "order": 4, "btype": "bandpass"},
+        )
+        phase = kwargs.get("phase", "zero")
+        fir_window = kwargs.get("fir_window", "hamming")
+        fir_design = kwargs.get("fir_design", "firwin")
+        tmin = kwargs.get("tmin", -0.2)
+        tmax = kwargs.get("tmax", 0.5)
+        baseline = kwargs.get("baseline", None)
+        resample = kwargs.get("resample", 128)
+
+        cache = kwargs.get("cache", True)
+        force_update = kwargs.get("force_update", False)
+        concat_runs = kwargs.get("concat_runs", False)
+        concat_sessions = kwargs.get("concat_sessions", False)
 
         self._check_subject(subject)
 
@@ -654,41 +597,28 @@ class BaseDataset:
     def get_tfrs(
         self,
         subject,
-        tmin_epochs,
-        tmax_epochs,
-        method_epochs="iir",
-        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
-        phase="zero",
-        fir_window="hamming",
-        fir_design="firwin",
-        l_freq=1.0,
-        h_freq=45.0,
-        baseline=None,
-        resample=128,
-        method="multitaper",
-        freqs=range(1, 46),
-        n_cycles=range(1, 46),
-        use_fft=True,
-        decim=2,
-        n_jobs=-1,
-        cache=True,
-        force_update=False,
+        **kwargs,
     ):
         data_type = "tfrs"
         suffix = "-tfr.hdf5"
 
+        params_epochs = kwargs.get("params_epochs", {})
+
+        method = kwargs.get("method", "multitaper")
+        freqs = kwargs.get("freqs", range(1, 46))
+        n_cycles = kwargs.get("n_cycles", range(1, 46))
+        use_fft = kwargs.get("use_fft", True)
+        decim = kwargs.get("decim", 2)
+        n_jobs = kwargs.get("n_jobs", -1)
+
+        cache = kwargs.get("cache", True)
+        force_update = kwargs.get("force_update", False)
+
+        concat_runs = kwargs.get("concat_runs", False)
+        concat_sessions = kwargs.get("concat_sessions", False)
+
         params = dict(
-            tmin_epochs=tmin_epochs,
-            tmax_epochs=tmax_epochs,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method_epochs=method_epochs,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            baseline=baseline,
-            resample=resample,
+            params_epochs=params_epochs,
             method=method,
             freqs=freqs,
             n_cycles=n_cycles,
@@ -715,41 +645,26 @@ class BaseDataset:
     def get_X_EA(
         self,
         subject,
-        tmin,
-        tmax,
-        picks="eeg",
-        l_freq=8,
-        h_freq=30,
-        method="iir",
-        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
-        phase="zero",
-        fir_window="hamming",
-        fir_design="firwin",
-        baseline=None,
-        resample=128,
-        tmin_epochs=-5.0,
-        tmax_epochs=7.0,
-        online_ea=False,
-        cache=True,
-        force_update=False,
-        concat_sessions=False,
+        **kwargs,
     ):
         data_type = "X-EA"
+
+        params_epochs = kwargs.get("params_epochs", {})
+        picks = kwargs.get("picks", "eeg")
+        tmin = kwargs.get("tmin", 0.0)
+        tmax = kwargs.get("tmax", 1.0)
+        online_ea = kwargs.get("online_ea", False)
+
+        cache = kwargs.get("cache", True)
+        force_update = kwargs.get("force_update", False)
+        concat_runs = kwargs.get("concat_runs", False)
+        concat_sessions = kwargs.get("concat_sessions", False)
+
         params = dict(
+            params_epochs=params_epochs,
+            picks=picks,
             tmin=tmin,
             tmax=tmax,
-            picks=picks,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method=method,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            baseline=baseline,
-            resample=resample,
-            tmin_epochs=tmin_epochs,
-            tmax_epochs=tmax_epochs,
             online_ea=online_ea,
         )
 
@@ -762,7 +677,7 @@ class BaseDataset:
             ),
             cache=cache,
             force_update=force_update,
-            concat_runs=True,
+            concat_runs=False,
             concat_sessions=concat_sessions,
         )
 
@@ -770,6 +685,28 @@ class BaseDataset:
 
     def _get_X_EA(self, subject, params, cache=True, force_update=False):
 
+        params_epochs = params["params_epochs"]
+        params_epochs = proc_params_epochs(params_epochs)
+
+        """
+        l_freq = load_dict(params_epochs, "l_freq", 1.0)
+        h_freq = load_dict(params_epochs, "h_freq", 45.0)
+        method = load_dict(params_epochs, "method", "iir")
+        iir_params = load_dict(
+            params_epochs,
+            "iir_params",
+            {"ftype": "butter", "order": 4, "btype": "bandpass"},
+        )
+        phase = load_dict(params_epochs, "phase", "zero")
+        fir_window = load_dict(params_epochs, "fir_window", "hamming")
+        fir_design = load_dict(params_epochs, "fir_design", "firwin")
+        tmin_epochs = load_dict(params_epochs, "tmin", -0.2)
+        tmax_epochs = load_dict(params_epochs, "tmax", 0.5)
+        baseline = load_dict(params_epochs, "baseline", None)
+        resample = load_dict(params_epochs, "resample", 128)
+        """
+
+        """
         l_freq = params["l_freq"]
         h_freq = params["h_freq"]
 
@@ -783,6 +720,7 @@ class BaseDataset:
         tmax_epochs = params["tmax_epochs"]
         baseline = params["baseline"]
         resample = params["resample"]
+        """
         picks = params["picks"]
         tmin = params["tmin"]
         tmax = params["tmax"]
@@ -791,17 +729,7 @@ class BaseDataset:
 
         epochs = self.get_epochs(
             subject=subject,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            method=method,
-            iir_params=iir_params,
-            phase=phase,
-            fir_window=fir_window,
-            fir_design=fir_design,
-            tmin=tmin_epochs,
-            tmax=tmax_epochs,
-            baseline=baseline,
-            resample=resample,
+            **params_epochs,
             cache=cache,
             force_update=force_update,
             concat_runs=True,
