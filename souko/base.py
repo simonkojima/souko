@@ -41,6 +41,8 @@ def proc_params_epochs(params):
     params = set_dict(params, "baseline", None)
     params = set_dict(params, "resample", 128)
 
+    params = utils.type_params(params)
+
     return params
 
 
@@ -293,7 +295,6 @@ class BaseDataset:
 
     def _get_covs(self, subject, params):
         params_epochs = params["params_epochs"]
-        params_epochs = proc_params_epochs(params_epochs)
 
         tmin = params["tmin"]
         tmax = params["tmax"]
@@ -320,7 +321,6 @@ class BaseDataset:
     def _get_covs_rpa(self, subject, params, cache=True, force_update=False):
 
         params_epochs = params["params_epochs"]
-        params_epochs = proc_params_epochs(params_epochs)
 
         tmin = params["tmin"]
         tmax = params["tmax"]
@@ -495,7 +495,6 @@ class BaseDataset:
     def _get_tfrs(self, subject, params, n_jobs):
 
         params_epochs = params["params_epochs"]
-        params_epochs = proc_params_epochs(params_epochs)
 
         method = params["method"]
         freqs = params["freqs"]
@@ -603,6 +602,7 @@ class BaseDataset:
         suffix = "-tfr.hdf5"
 
         params_epochs = kwargs.get("params_epochs", {})
+        params_epochs = proc_params_epochs(params_epochs)
 
         method = kwargs.get("method", "multitaper")
         freqs = kwargs.get("freqs", range(1, 46))
@@ -650,6 +650,8 @@ class BaseDataset:
         data_type = "X-EA"
 
         params_epochs = kwargs.get("params_epochs", {})
+        params_epochs = proc_params_epochs(params_epochs)
+
         picks = kwargs.get("picks", "eeg")
         tmin = kwargs.get("tmin", 0.0)
         tmax = kwargs.get("tmax", 1.0)
@@ -686,41 +688,7 @@ class BaseDataset:
     def _get_X_EA(self, subject, params, cache=True, force_update=False):
 
         params_epochs = params["params_epochs"]
-        params_epochs = proc_params_epochs(params_epochs)
 
-        """
-        l_freq = load_dict(params_epochs, "l_freq", 1.0)
-        h_freq = load_dict(params_epochs, "h_freq", 45.0)
-        method = load_dict(params_epochs, "method", "iir")
-        iir_params = load_dict(
-            params_epochs,
-            "iir_params",
-            {"ftype": "butter", "order": 4, "btype": "bandpass"},
-        )
-        phase = load_dict(params_epochs, "phase", "zero")
-        fir_window = load_dict(params_epochs, "fir_window", "hamming")
-        fir_design = load_dict(params_epochs, "fir_design", "firwin")
-        tmin_epochs = load_dict(params_epochs, "tmin", -0.2)
-        tmax_epochs = load_dict(params_epochs, "tmax", 0.5)
-        baseline = load_dict(params_epochs, "baseline", None)
-        resample = load_dict(params_epochs, "resample", 128)
-        """
-
-        """
-        l_freq = params["l_freq"]
-        h_freq = params["h_freq"]
-
-        method = params["method"]
-        iir_params = params["iir_params"]
-        phase = params["phase"]
-        fir_window = params["fir_window"]
-        fir_design = params["fir_design"]
-
-        tmin_epochs = params["tmin_epochs"]
-        tmax_epochs = params["tmax_epochs"]
-        baseline = params["baseline"]
-        resample = params["resample"]
-        """
         picks = params["picks"]
         tmin = params["tmin"]
         tmax = params["tmax"]

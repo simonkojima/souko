@@ -41,8 +41,6 @@ extensions = [
     "sphinx_multiversion",
     "sphinx_gallery.gen_gallery",
     "numpydoc",
-    # "sphinx.ext.viewcode",
-    # "sphinx_autodoc_typehints",
 ]
 
 autosummary_generate = True
@@ -50,23 +48,6 @@ autosummary_generate = True
 smv_tag_whitelist = r"^v\d+\.\d+.*$"
 smv_branch_whitelist = r"^main$"
 smv_remote_whitelist = r"^origin$"
-
-"""
-autodoc_default_options = {
-    "members": True,
-    "undoc-members": True,
-    "inherited-members": True,
-    "show-inheritance": True,
-    "private-members": True,
-}
-"""
-
-# smv_rename_latest_version = True
-# smv_branch_labels = {
-#    "main": "latest",
-# }
-
-# import sphinx_rtd_theme
 
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {

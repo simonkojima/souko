@@ -12,6 +12,14 @@ souko.datasets.dreyer\_2023 module
    :show-inheritance:
    :undoc-members:
 
+souko.datasets.lee\_2019 module
+-------------------------------
+
+.. automodule:: souko.datasets.lee_2019
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 

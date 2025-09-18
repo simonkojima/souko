@@ -31,6 +31,9 @@ def type_params(params):
             if params[key] is not None:
                 params[key] = int(params[key])
 
+    if "iir_params" in keys:
+        params["iir_params"] = type_params(params["iir_params"])
+
     return params
 
 

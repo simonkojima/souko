@@ -19,3 +19,4 @@ souko.datasets
    :recursive:
 
    souko.datasets.Dreyer2023
+   souko.datasets.Lee2019

@@ -18,6 +18,7 @@
       ~BaseDataset.get_epochs
       ~BaseDataset.get_labels
       ~BaseDataset.get_manifest
+      ~BaseDataset.get_participants
       ~BaseDataset.get_raw
       ~BaseDataset.get_tfrs
    
