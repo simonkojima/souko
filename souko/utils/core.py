@@ -1,4 +1,3 @@
-import argparse
 import re
 import tag_mne as tm
 import numpy as np
@@ -6,72 +5,6 @@ import numpy as np
 
 def natural_key(s: str):
     return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)]
-
-
-def type_params(params):
-
-    keys_float = [
-        "l_freq",
-        "h_freq",
-        "tmin",
-        "tmax",
-        "baseline",
-        "tmin_epochs",
-        "tmax_epochs",
-    ]
-    keys_int = ["order", "resample"]
-
-    keys = list(params.keys())
-
-    for key in keys_float:
-        if key in keys:
-            if params[key] is not None:
-                params[key] = float(params[key])
-
-    for key in keys_int:
-        if key in keys:
-            if params[key] is not None:
-                params[key] = int(params[key])
-
-    return params
-
-
-def encode_params(params):
-
-    params = type_params(params)
-
-    if isinstance(params, argparse.Namespace):
-        params_dict = vars(params)
-    else:
-        params_dict = params
-
-    sorted_params = dict(sorted(params_dict.items(), key=lambda x: x[0]))
-    proc_id = []
-    for k, v in sorted_params.items():
-        proc_id.append(f"{k}={v}")
-    proc_id = "__".join(proc_id)
-
-    return proc_id
-
-
-def decode_params(params):
-    pairs = params.split("__")
-
-    data = {}
-    for pair in pairs:
-
-        k = pair.split("=")[0]
-        v = pair.split("=")[1]
-
-        try:
-            v = float(v)
-        except:
-            if v == "None":
-                v = None
-
-        data[k] = v
-
-    return data
 
 
 def get_labels_from_epochs(epochs, label_keys={"event:left": 0, "event:right": 1}):

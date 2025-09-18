@@ -78,109 +78,33 @@ class BaseDataset:
         if subject not in self.subjects_list:
             raise ValueError(f"Invalid subject: {subject}")
 
-    def get_proc_list(self, data_type):
-        return os.listdir(self.base_dir / "derivatives" / data_type)
+    def get_participants(self):
+        fname = self.base_dir / "participants.tsv"
+        df = pd.read_tsv(fname, sep="\t")
+
+        return df
+
+    def get_manifest(self, data_type):
+        fname = self.base_dir / "derivatives" / data_type / "manifest.parquet"
+        manifest = pd.read_parquet(fname)
+
+        return manifest
 
     def get_raw(self, subject):
+        """
+        Rawデータを取得する。
+
+        Parameters
+        ----------
+        subject : int
+
+        Returns
+        -------
+        dict of raw
+
+        """
         self._check_subject(subject)
         return self._get_raw(subject)
-
-    def get_epochs(
-        self,
-        subject,
-        l_freq=1.0,
-        h_freq=45.0,
-        order=4,
-        tmin=-1.0,
-        tmax=2.0,
-        baseline=None,
-        resample=128,
-        cache=True,
-        force_update=False,
-        concat_runs=False,
-        concat_sessions=False,
-    ):
-
-        self._check_subject(subject)
-
-        if cache is True:
-            params = utils.encode_params(
-                dict(
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                    order=order,
-                    tmin=tmin,
-                    tmax=tmax,
-                    baseline=baseline,
-                    resample=resample,
-                )
-            )
-
-            epochs_base = (
-                self.base_dir / "derivatives" / "epochs" / params / f"sub-{subject}"
-            )
-
-            files = check_files(epochs_base, "-epo.fif")
-
-            if (files is not None) and (force_update is False):
-
-                files_meta = pd.read_csv(epochs_base / "files.tsv", sep="\t")
-                sessions = files_meta["session"].tolist()
-                epochs = {session: {} for session in list(set(sessions))}
-                runs = files_meta["run"].tolist()
-                fnames = files_meta["fname"].tolist()
-
-                for session, run, fname in zip(sessions, runs, fnames):
-                    epochs[session][run] = mne.read_epochs(epochs_base / fname)
-
-            else:
-                epochs = self._get_epochs(
-                    subject=subject,
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                    order=order,
-                    tmin=tmin,
-                    tmax=tmax,
-                    baseline=baseline,
-                    resample=resample,
-                )
-
-                epochs_base.mkdir(parents=True, exist_ok=True)
-
-                files_meta = {"session": [], "run": [], "fname": []}
-                for session, epochs_session in epochs.items():
-                    for run, e in epochs_session.items():
-                        e.save(epochs_base / f"{session}_{run}-epo.fif", overwrite=True)
-                        files_meta["session"].append(session)
-                        files_meta["run"].append(run)
-                        files_meta["fname"].append(f"{session}_{run}-epo.fif")
-
-                files_meta = pd.DataFrame(files_meta)
-                files_meta.to_csv(epochs_base / "files.tsv", sep="\t", index=False)
-
-        else:
-            epochs = self._get_epochs(
-                subject=subject,
-                l_freq=l_freq,
-                h_freq=h_freq,
-                order=order,
-                tmin=tmin,
-                tmax=tmax,
-                baseline=baseline,
-                resample=resample,
-            )
-
-        if concat_runs:
-
-            sessions = list(epochs.keys())
-
-            for session in sessions:
-                epochs[session] = mne.concatenate_epochs(list(epochs[session].values()))
-
-            if concat_sessions:
-                epochs = mne.concatenate_epochs(list(epochs.values()))
-
-        return epochs
 
     def _get_data(
         self,
@@ -193,6 +117,51 @@ class BaseDataset:
         func_load_data=None,
         **kwargs,
     ):
+        """
+        インタフェース用関数
+
+        Parameters
+        ----------
+        subject: int
+
+        data_type: str
+            ``DATASET/derivatives/{data_type}`` に該当する部分
+        params: dict
+            ``func_get_data`` に渡すパラメータ
+        suffix: ファイルのsuffix, Default = ".msgpack"
+            例えば，mne.Epochsなら ``-epo.fif`` みたいな
+        func_get_data:
+            データ取得用関数への参照
+
+            .. code-block:: python
+
+                def func_get_data(subject, params):
+                    # ...
+                    return data
+
+        func_save_data: callable, default = None
+            データ保存用関数
+
+            Noneの場合はmsgpackでオブジェクト全体を保存
+
+            .. code-block:: python
+
+                def func_save_data(data, save_base, suffix):
+                    pass
+
+        func_load_data: callable, default = None
+            データ読み出し用関数
+            Noneの場合はmsgpack読み出し
+
+            .. code-block:: python
+
+                def func_load_data(save_base, suffix):
+                    # ...
+                    return data
+
+
+
+        """
         self._check_subject(subject)
         m.patch()
 
@@ -203,13 +172,23 @@ class BaseDataset:
 
         if cache is True:
             if params is not None:
-                proc_id = utils.encode_params(params)
+                hash, canonical_params = utils.encode_params(params)
             else:
-                proc_id = "None"
+                params = {"None": None}
+                hash, canonical_params = utils.encode_params(params)
+
+            from .__init__ import __version__
+
+            canonical_params["hash"] = f"{hash}"
+            canonical_params["version"] = __version__
+
+            manifest = pd.DataFrame([canonical_params])
 
             save_base = (
-                self.base_dir / "derivatives" / data_type / proc_id / f"sub-{subject}"
+                self.base_dir / "derivatives" / data_type / hash / f"sub-{subject}"
             )
+
+            fname_manifest = self.base_dir / "derivatives" / data_type / "manifest"
 
             files = check_files(save_base, suffix)
 
@@ -228,6 +207,15 @@ class BaseDataset:
                 else:
                     with open(save_base / f"sub-{subject}.msgpack", "wb") as f:
                         msgpack.dump(data, f)
+
+                if os.path.exists(f"{fname_manifest}.parquet"):
+                    manifest_exist = pd.read_parquet(f"{fname_manifest}.parquet")
+                    manifest = pd.concat(
+                        [manifest_exist, manifest], axis=0, ignore_index=True
+                    )
+
+                manifest.to_csv(f"{fname_manifest}.tsv", sep="\t", index=False)
+                manifest.to_parquet(f"{fname_manifest}.parquet")
 
         else:
             data = func_get_data(subject, params)
@@ -252,7 +240,13 @@ class BaseDataset:
     def _get_covs(self, subject, params):
         l_freq = params["l_freq"]
         h_freq = params["h_freq"]
-        order = params["order"]
+
+        method = params["method"]
+        iir_params = params["iir_params"]
+        phase = params["phase"]
+        fir_window = params["fir_window"]
+        fir_design = params["fir_design"]
+
         tmin_epochs = params["tmin_epochs"]
         tmax_epochs = params["tmax_epochs"]
         baseline = params["baseline"]
@@ -266,7 +260,11 @@ class BaseDataset:
             subject=subject,
             l_freq=l_freq,
             h_freq=h_freq,
-            order=order,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
             tmin=tmin_epochs,
             tmax=tmax_epochs,
             baseline=baseline,
@@ -295,7 +293,13 @@ class BaseDataset:
         picks = params["picks"]
         l_freq = params["l_freq"]
         h_freq = params["h_freq"]
-        order = params["order"]
+
+        method = params["method"]
+        iir_params = params["iir_params"]
+        phase = params["phase"]
+        fir_window = params["fir_window"]
+        fir_design = params["fir_design"]
+
         baseline = params["baseline"]
         resample = params["resample"]
         tmin_epochs = params["tmin_epochs"]
@@ -316,7 +320,11 @@ class BaseDataset:
             picks=picks,
             l_freq=l_freq,
             h_freq=h_freq,
-            order=order,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
             baseline=baseline,
             resample=resample,
             tmin_epochs=tmin_epochs,
@@ -345,7 +353,11 @@ class BaseDataset:
         picks="eeg",
         l_freq=8,
         h_freq=30,
-        order=4,
+        method="iir",
+        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
+        phase="zero",
+        fir_window="hamming",
+        fir_design="firwin",
         baseline=None,
         resample=128,
         tmin_epochs=-5.0,
@@ -368,7 +380,11 @@ class BaseDataset:
                 picks=picks,
                 l_freq=l_freq,
                 h_freq=h_freq,
-                order=order,
+                method=method,
+                iir_params=iir_params,
+                phase=phase,
+                fir_window=fir_window,
+                fir_design=fir_design,
                 baseline=baseline,
                 resample=resample,
                 tmin_epochs=tmin_epochs,
@@ -395,7 +411,11 @@ class BaseDataset:
                 picks=picks,
                 l_freq=l_freq,
                 h_freq=h_freq,
-                order=order,
+                method=method,
+                iir_params=iir_params,
+                phase=phase,
+                fir_window=fir_window,
+                fir_design=fir_design,
                 baseline=baseline,
                 resample=resample,
                 tmin_epochs=tmin_epochs,
@@ -420,13 +440,18 @@ class BaseDataset:
 
     def _get_labels(self, subject, params):
 
-        params_epochs = utils.decode_params(self.get_proc_list("epochs")[-1])
+        manifest = self.get_manifest("epochs")
+        params_epochs = manifest.iloc[0].to_dict()
 
         l_freq = params_epochs["l_freq"]
         h_freq = params_epochs["h_freq"]
-        order = params_epochs["order"]
-        tmin_epochs = params_epochs["tmin"]
-        tmax_epochs = params_epochs["tmax"]
+        method = params_epochs["method"]
+        iir_params = params_epochs["iir_params"]
+        phase = params_epochs["phase"]
+        fir_window = params_epochs["fir_window"]
+        fir_design = params_epochs["fir_design"]
+        tmin = params_epochs["tmin"]
+        tmax = params_epochs["tmax"]
         baseline = params_epochs["baseline"]
         resample = params_epochs["resample"]
 
@@ -436,17 +461,24 @@ class BaseDataset:
             subject=subject,
             l_freq=l_freq,
             h_freq=h_freq,
-            order=order,
-            tmin=tmin_epochs,
-            tmax=tmax_epochs,
+            tmin=tmin,
+            tmax=tmax,
             baseline=baseline,
             resample=resample,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
         )
 
-        labels = {1: {}}
+        labels = {}
 
-        for k, e in epochs[1].items():
-            labels[1][k] = utils.get_labels_from_epochs(e, label_keys)
+        for session in self.sessions_list:
+            labels[session] = {}
+
+            for k, e in epochs[session].items():
+                labels[session][k] = utils.get_labels_from_epochs(e, label_keys)
 
         return labels
 
@@ -484,6 +516,12 @@ class BaseDataset:
         baseline = params["baseline"]
         resample = params["resample"]
 
+        method_epochs = params["method_epochs"]
+        iir_params = params["iir_params"]
+        phase = params["phase"]
+        fir_window = params["fir_window"]
+        fir_design = params["fir_design"]
+
         method = params["method"]
         freqs = params["freqs"]
         n_cycles = params["n_cycles"]
@@ -494,7 +532,11 @@ class BaseDataset:
             subject=subject,
             l_freq=l_freq,
             h_freq=h_freq,
-            order=order,
+            method=method_epochs,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
             tmin=tmin_epochs,
             tmax=tmax_epochs,
             baseline=baseline,
@@ -526,21 +568,81 @@ class BaseDataset:
 
         return tfrs
 
+    def get_epochs(
+        self,
+        subject,
+        l_freq=1.0,
+        h_freq=45.0,
+        method="iir",
+        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
+        phase="zero",
+        fir_window="hamming",
+        fir_design="firwin",
+        tmin=-0.2,
+        tmax=0.5,
+        baseline=None,
+        resample=128,
+        cache=True,
+        force_update=False,
+        concat_runs=False,
+        concat_sessions=False,
+    ):
+
+        self._check_subject(subject)
+
+        data_type = "epochs"
+        suffix = "-epo.fif"
+
+        params = dict(
+            tmin=tmin,
+            tmax=tmax,
+            l_freq=l_freq,
+            h_freq=h_freq,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
+            baseline=baseline,
+            resample=resample,
+        )
+
+        data = self._get_data(
+            subject,
+            data_type=data_type,
+            params=params,
+            suffix=suffix,
+            func_get_data=self._get_epochs,
+            func_save_data=save_mne_objs,
+            func_load_data=functools.partial(
+                load_mne_objs,
+                func_load=mne.read_epochs,
+            ),
+            cache=cache,
+            force_update=force_update,
+        )
+
+        return data
+
     def get_tfrs(
         self,
         subject,
         tmin_epochs,
         tmax_epochs,
-        l_freq,
-        h_freq,
-        order,
-        baseline,
-        resample,
-        method,
-        freqs,
-        n_cycles,
-        use_fft,
-        decim,
+        method_epochs="iir",
+        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
+        phase="zero",
+        fir_window="hamming",
+        fir_design="firwin",
+        l_freq=1.0,
+        h_freq=45.0,
+        baseline=None,
+        resample=128,
+        method="multitaper",
+        freqs=range(1, 46),
+        n_cycles=range(1, 46),
+        use_fft=True,
+        decim=2,
         n_jobs=-1,
         cache=True,
         force_update=False,
@@ -553,7 +655,11 @@ class BaseDataset:
             tmax_epochs=tmax_epochs,
             l_freq=l_freq,
             h_freq=h_freq,
-            order=order,
+            method_epochs=method_epochs,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
             baseline=baseline,
             resample=resample,
             method=method,

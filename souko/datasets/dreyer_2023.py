@@ -8,11 +8,13 @@ from .. import utils
 
 
 class Dreyer2023(BaseDataset):
-    def __init__(self, base_dir=Path.home() / "Documents" / "datasets" / "dreyer_2023"):
+    def __init__(self, base_dir="~/Documents/datasets/dreyer_2023"):
         subjects_list = list(range(1, 88))  # subjects 1-87
         sessions_list = [1]
         super().__init__(
-            base_dir=base_dir, subjects_list=subjects_list, sessions_list=sessions_list
+            base_dir=Path(base_dir).expanduser(),
+            subjects_list=subjects_list,
+            sessions_list=sessions_list,
         )
 
     def _get_raw(self, subject):
@@ -47,9 +49,20 @@ class Dreyer2023(BaseDataset):
 
         return {1: runs}
 
-    def _get_epochs(
-        self, subject, l_freq, h_freq, order, tmin, tmax, baseline, resample
-    ):
+    def _get_epochs(self, subject, params):
+        tmin = params["tmin"]
+        tmax = params["tmax"]
+        baseline = params["baseline"]
+        resample = params["resample"]
+
+        l_freq = params["l_freq"]
+        h_freq = params["h_freq"]
+        method = params["method"]
+        iir_params = params["iir_params"]
+        phase = params["phase"]
+        fir_window = params["fir_window"]
+        fir_design = params["fir_design"]
+
         raws = self.get_raw(subject)
 
         epochs_dict = {1: {}}
@@ -67,8 +80,11 @@ class Dreyer2023(BaseDataset):
             raw.filter(
                 l_freq=l_freq,
                 h_freq=h_freq,
-                method="iir",
-                iir_params={"ftype": "butter", "order": order, "btype": "bandpass"},
+                method=method,
+                iir_params=iir_params,
+                phase=phase,
+                fir_window=fir_window,
+                fir_design=fir_design,
             )
 
             # eog and emg mapping
