@@ -43,7 +43,16 @@ extensions = [
     "numpydoc",
 ]
 
-autosummary_generate = True
+# autosummary_generate = True
+
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "private-members": True,
+    "inherited-members": True,
+    "show-inheritance": True,
+    "special-members": "__init__",
+}
 
 smv_tag_whitelist = r"^v\d+\.\d+.*$"
 smv_branch_whitelist = r"^main$"

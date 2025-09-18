@@ -21,6 +21,14 @@ souko.base module
    :show-inheritance:
    :undoc-members:
 
+souko.memory\_cache module
+--------------------------
+
+.. automodule:: souko.memory_cache
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 

@@ -14,6 +14,7 @@
    .. autosummary::
    
       ~Dreyer2023.__init__
+      ~Dreyer2023.get_X_EA
       ~Dreyer2023.get_covs
       ~Dreyer2023.get_epochs
       ~Dreyer2023.get_labels

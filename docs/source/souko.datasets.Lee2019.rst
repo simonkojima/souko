@@ -14,6 +14,7 @@
    .. autosummary::
    
       ~Lee2019.__init__
+      ~Lee2019.get_X_EA
       ~Lee2019.get_covs
       ~Lee2019.get_epochs
       ~Lee2019.get_epochs_phase

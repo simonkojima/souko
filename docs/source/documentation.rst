@@ -9,7 +9,7 @@ souko
    :recursive:
 
    souko.BaseDataset
-   souko.BaseDataset._get_data
+   # souko.BaseDataset._get_data
 
 souko.datasets
 --------------

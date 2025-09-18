@@ -14,6 +14,7 @@
    .. autosummary::
    
       ~BaseDataset.__init__
+      ~BaseDataset.get_X_EA
       ~BaseDataset.get_covs
       ~BaseDataset.get_epochs
       ~BaseDataset.get_labels

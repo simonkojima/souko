@@ -98,6 +98,20 @@ def check_files(dir, suffix):
 
 class BaseDataset:
     def __init__(self, base_dir, subjects_list, sessions_list):
+        """
+        Souko Baseクラス
+
+        Parameters
+        ----------
+        base_dir: path-like
+            データのベースディレクトリ指定
+        subjects_list: list of int
+            subject number のリスト
+        sessions_list: list of int
+            セッションのリスト
+            全被験者で同じセッション数の想定
+
+        """
         self.base_dir = base_dir
         self.subjects_list = subjects_list
         self.sessions_list = sessions_list
@@ -115,12 +129,23 @@ class BaseDataset:
             raise ValueError(f"Invalid subject: {subject}")
 
     def get_participants(self):
+        """
+        BIDSのparticipants.tsvを読み込み、pandas.DataFrameを返す
+        """
         fname = self.base_dir / "participants.tsv"
         df = pd.read_tsv(fname, sep="\t")
 
         return df
 
     def get_manifest(self, data_type):
+        """
+        各データタイプについて、hashとパラメータのリストを含むpandas.DataFrameを返す
+
+        Parameters
+        ----------
+        data_type: str
+            ``base_dir / "derivatives" / data_type / "manifest.parquet"`` を読み込む
+        """
         fname = self.base_dir / "derivatives" / data_type / "manifest.parquet"
         manifest = pd.read_parquet(fname)
 
@@ -357,6 +382,30 @@ class BaseDataset:
         subject,
         **kwargs,
     ):
+        """
+        Covariance Matrixを計算
+        ``pyriemann.estimation.Covariances()`` を利用
+
+        Parameters
+        ----------
+        params_epochs: dict
+            ``BaseDataset.get_epochs`` に渡される引数
+        picks: str, default = "eeg"
+        tmin: float, default = 0.0
+        tmax: float, default = 1.0
+        estimator: str, default = "scm"
+            詳しくは， ``pyriemann.estimation.Covariances()`` 参照
+        recentering: bool, default = False
+            RPAのRecenteringを適用
+        rescaling: bool, default = False
+            RPAのRescalingを適用
+        online_rpa: bool, default = False
+            RPAをオンラインで適用．第Nエポック目のCOVをそこまでのデータでRPA適用．
+
+        Returns
+        -------
+        dict of covariances (np.ndarray)
+        """
         params_epochs = kwargs.get("params_epochs", {})
         params_epochs = proc_params_epochs(params_epochs)
 
@@ -477,6 +526,19 @@ class BaseDataset:
         concat_runs=False,
         concat_sessions=False,
     ):
+        """
+        ラベルデータ取得
+
+        Parameters
+        ----------
+        subject: int
+        label_keys: dict, default = ``{"event:left":0, "event:right":1}``
+        cache: bool, default = True
+        force_update: bool, default = False
+        concat_runs: bool, default = False
+        concat_sessions: bool, default = False
+
+        """
         data_type = "labels"
         params = dict(label_keys=label_keys)
         data = self._get_data(
@@ -534,6 +596,38 @@ class BaseDataset:
         subject,
         **kwargs,
     ):
+        """
+        epochs取得用
+
+        Parameters
+        ----------
+        subject: int
+        l_freq: float, default = 1.0
+        h_freq: float, default = 45.0
+        method: str, default = "iir"
+        phase: str, default = "zero"
+        fir_window: str, default = "hamming"
+        fir_design: str, default = "firwin"
+        tmin: float, default = -0.2
+        tmax: float, default = 0.5
+        baseline: tuple, list, or None, default = None
+        resample: float, default = 128
+
+        cache: bool, default = True
+            データキャッシュを利用するか
+        force_update: bool, default = False
+            強制的に再計算
+        concat_runs: bool, default = False
+            セッションごとにrunデータを結合
+        concat_sessions: bool, default = False
+            全セッションデータを結合
+            runが結合済みである必要がある
+
+        Returns
+        -------
+        dict of epochs
+
+        """
 
         l_freq = kwargs.get("l_freq", 1.0)
         h_freq = kwargs.get("h_freq", 45.0)
@@ -598,6 +692,25 @@ class BaseDataset:
         subject,
         **kwargs,
     ):
+        """
+        Time-Frequency Representationの計算
+
+        Parameters
+        ----------
+        subject: int
+        params_epochs: dict
+            ``BaseDataset.get_epochs`` に渡される引数
+        method: str, default = "multitaper"
+        freqs: list or range, default = range(1, 46)
+        n_cycles: list or range, default = range(1, 46)
+        use_fft: bool, default = True
+        decim: int, default = 2
+        n_jobs: int, default = -1
+        cache: bool, default = True,
+        force_update: bool, default = False
+        concat_runs: bool, default = False
+        concat_sessions: bool, default = False
+        """
         data_type = "tfrs"
         suffix = "-tfr.hdf5"
 
@@ -647,6 +760,23 @@ class BaseDataset:
         subject,
         **kwargs,
     ):
+        """
+        Euclidean Alignmentを適用したエポックデータ取得
+
+        Parameters
+        ----------
+        subject: int
+        params_epochs: dict
+            ``BaseDataset.get_epochs`` に渡される引数
+        picks: str, default = "eeg"
+        tmin: float, default = 0.0
+        tmax: float, default = 1.0
+        online_ea: bool, default = False
+        cache: bool, default = True,
+        force_update: bool, default = False
+        concat_sessions: bool, default = False
+
+        """
         data_type = "X-EA"
 
         params_epochs = kwargs.get("params_epochs", {})
