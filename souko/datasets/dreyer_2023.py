@@ -126,36 +126,3 @@ class Dreyer2023(BaseDataset):
             epochs_dict[1][key] = epochs
 
         return epochs_dict
-
-    def get_epochs_phase(
-        self,
-        subject,
-        l_freq=8,
-        h_freq=30,
-        order=4,
-        tmin=-5.0,
-        tmax=7.0,
-        baseline=None,
-        resample=128,
-    ):
-        epochs = self.get_epochs(
-            subject,
-            l_freq=l_freq,
-            h_freq=h_freq,
-            order=order,
-            tmin=tmin,
-            tmax=tmax,
-            baseline=baseline,
-            resample=resample,
-        )
-
-        epochs_acquisition = [epochs[1][f"R{run}"] for run in [1, 2]]
-        if subject == 59:
-            epochs_online = [epochs[1][f"R{run}"] for run in [3, 4]]
-        else:
-            epochs_online = [epochs[1][f"R{run}"] for run in [3, 4, 5, 6]]
-
-        epochs_acquisition = mne.concatenate_epochs(epochs_acquisition)
-        epochs_online = mne.concatenate_epochs(epochs_online)
-
-        return {"acquisition": epochs_acquisition, "online": epochs_online}

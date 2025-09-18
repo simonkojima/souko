@@ -1,4 +1,5 @@
 import os
+import warnings
 import pandas as pd
 import functools
 
@@ -210,12 +211,18 @@ class BaseDataset:
 
                 if os.path.exists(f"{fname_manifest}.parquet"):
                     manifest_exist = pd.read_parquet(f"{fname_manifest}.parquet")
-                    manifest = pd.concat(
-                        [manifest_exist, manifest], axis=0, ignore_index=True
-                    )
 
-                manifest.to_csv(f"{fname_manifest}.tsv", sep="\t", index=False)
-                manifest.to_parquet(f"{fname_manifest}.parquet")
+                    hash_list = manifest_exist["hash"].tolist()
+                    if hash in hash_list:
+                        manifest = None
+                    else:
+                        manifest = pd.concat(
+                            [manifest_exist, manifest], axis=0, ignore_index=True
+                        )
+
+                if manifest is not None:
+                    manifest.to_csv(f"{fname_manifest}.tsv", sep="\t", index=False)
+                    manifest.to_parquet(f"{fname_manifest}.parquet")
 
         else:
             data = func_get_data(subject, params)
@@ -223,13 +230,27 @@ class BaseDataset:
         if concat_runs:
             for session in self.sessions_list:
                 values = list(data[session].values())
-                try:
-                    data[session] = np.concatenate(values, axis=0)
-                except:
-                    data[session] = values
 
-            if concat_sessions:
-                values = list(data.values())
+                if (isinstance(values[0], mne.Epochs)) or (
+                    isinstance(values[0], mne.EpochsArray)
+                    or (isinstance(values[0], mne.epochs.EpochsFIF))
+                ):
+                    data[session] = mne.concatenate_epochs(values)
+                else:
+                    try:
+                        data[session] = np.concatenate(values, axis=0)
+                    except:
+                        data[session] = values
+
+        if concat_sessions:
+            values = list(data.values())
+
+            if (isinstance(values[0], mne.Epochs)) or (
+                isinstance(values[0], mne.EpochsArray)
+                or (isinstance(values[0], mne.epochs.EpochsFIF))
+            ):
+                data = mne.concatenate_epochs(values)
+            else:
                 try:
                     data = np.concatenate(values, axis=0)
                 except:
@@ -274,15 +295,15 @@ class BaseDataset:
         import pyriemann
 
         data = {}
-        for k, e in epochs[1].items():
-            e = e.pick(picks=picks).crop(tmin=tmin, tmax=tmax)
-            covs = pyriemann.estimation.Covariances(estimator=estimator).fit_transform(
-                e.get_data()
-            )
+        for session in self.sessions_list:
+            data[session] = {}
+            for k, e in epochs[session].items():
+                e = e.pick(picks=picks).crop(tmin=tmin, tmax=tmax)
+                covs = pyriemann.estimation.Covariances(
+                    estimator=estimator
+                ).fit_transform(e.get_data())
 
-            data[k] = covs
-
-        data = {1: data}
+                data[session][k] = covs
 
         return data
 
@@ -425,6 +446,9 @@ class BaseDataset:
                 online_rpa=online_rpa,
             )
 
+            if concat_runs is False:
+                warnings.warn("All runs will be concatenated when RPA is enabled")
+
             data = self._get_data(
                 subject,
                 data_type,
@@ -434,6 +458,7 @@ class BaseDataset:
                 ),
                 cache=cache,
                 force_update=force_update,
+                concat_sessions=concat_sessions,
             )
 
         return data
@@ -620,6 +645,8 @@ class BaseDataset:
             ),
             cache=cache,
             force_update=force_update,
+            concat_runs=concat_runs,
+            concat_sessions=concat_sessions,
         )
 
         return data
@@ -682,5 +709,116 @@ class BaseDataset:
             cache=cache,
             force_update=force_update,
         )
+
+        return data
+
+    def get_X_EA(
+        self,
+        subject,
+        tmin,
+        tmax,
+        picks="eeg",
+        l_freq=8,
+        h_freq=30,
+        method="iir",
+        iir_params={"ftype": "butter", "order": 4, "btype": "bandpass"},
+        phase="zero",
+        fir_window="hamming",
+        fir_design="firwin",
+        baseline=None,
+        resample=128,
+        tmin_epochs=-5.0,
+        tmax_epochs=7.0,
+        online_ea=False,
+        cache=True,
+        force_update=False,
+        concat_sessions=False,
+    ):
+        data_type = "X-EA"
+        params = dict(
+            tmin=tmin,
+            tmax=tmax,
+            picks=picks,
+            l_freq=l_freq,
+            h_freq=h_freq,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
+            baseline=baseline,
+            resample=resample,
+            tmin_epochs=tmin_epochs,
+            tmax_epochs=tmax_epochs,
+            online_ea=online_ea,
+        )
+
+        data = self._get_data(
+            subject,
+            data_type,
+            params,
+            func_get_data=functools.partial(
+                self._get_X_EA, cache=cache, force_update=force_update
+            ),
+            cache=cache,
+            force_update=force_update,
+            concat_runs=True,
+            concat_sessions=concat_sessions,
+        )
+
+        return data
+
+    def _get_X_EA(self, subject, params, cache=True, force_update=False):
+
+        l_freq = params["l_freq"]
+        h_freq = params["h_freq"]
+
+        method = params["method"]
+        iir_params = params["iir_params"]
+        phase = params["phase"]
+        fir_window = params["fir_window"]
+        fir_design = params["fir_design"]
+
+        tmin_epochs = params["tmin_epochs"]
+        tmax_epochs = params["tmax_epochs"]
+        baseline = params["baseline"]
+        resample = params["resample"]
+        picks = params["picks"]
+        tmin = params["tmin"]
+        tmax = params["tmax"]
+
+        online_ea = params["online_ea"]
+
+        epochs = self.get_epochs(
+            subject=subject,
+            l_freq=l_freq,
+            h_freq=h_freq,
+            method=method,
+            iir_params=iir_params,
+            phase=phase,
+            fir_window=fir_window,
+            fir_design=fir_design,
+            tmin=tmin_epochs,
+            tmax=tmax_epochs,
+            baseline=baseline,
+            resample=resample,
+            cache=cache,
+            force_update=force_update,
+            concat_runs=True,
+            concat_sessions=False,
+        )
+        from rosoku.tl import euclidean_alignment
+
+        data = {}
+        for session in self.sessions_list:
+            data[session] = {}
+
+            e = epochs[session]
+
+            e = e.pick(picks=picks).crop(tmin=tmin, tmax=tmax)
+
+            X_EA = euclidean_alignment(e.get_data(), online=online_ea)
+
+            data[session] = X_EA
 
         return data
