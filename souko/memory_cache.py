@@ -1,14 +1,19 @@
 class MemoryCache:
-    def __init__(self, dataset, subjects):
-        self.dataset = dataset
+    def __init__(self, subjects):
+        """
+        指定したsubjectsのデータを保持し，読み込ませる
+        """
+        # self.dataset = dataset
         self.subjects = subjects
         self.data = {}
 
-    def load(self, name, concat_runs=False, concat_sessions=False, **kwargs):
+    def load(
+        self, name, func_get_data, concat_runs=False, concat_sessions=False, **kwargs
+    ):
         self.data[name] = {}
 
         for subject in self.subjects:
-            data = self.dataset.get_covs(
+            data = func_get_data(
                 subject=subject,
                 **kwargs,
                 concat_runs=concat_runs,

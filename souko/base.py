@@ -116,6 +116,36 @@ class BaseDataset:
         self.subjects_list = subjects_list
         self.sessions_list = sessions_list
 
+    def update_manifest(self, data_type):
+        """
+        manifestファイルの更新
+        手動でフォルダ消したときにこれ実行すれば，自動的に更新される
+
+        Parameters
+        ----------
+        data_type: str
+            "covs"とかそういうやつ
+
+        """
+        manifest = self.get_manifest(data_type)
+
+        hashs_manifest = manifest["hash"].tolist()
+
+        hashs = os.listdir(self.base_dir / "derivatives" / data_type)
+
+        for h in hashs_manifest:
+            if h not in hashs:
+                manifest = manifest[manifest["hash"] != h]
+
+                manifest.to_csv(
+                    self.base_dir / "derivatives" / data_type / "manifest.tsv",
+                    sep="\t",
+                    index=False,
+                )
+                manifest.to_parquet(
+                    self.base_dir / "derivatives" / data_type / "manifest.parquet"
+                )
+
     def _get_raw(self, subject):
         raise NotImplementedError()
 
@@ -133,7 +163,7 @@ class BaseDataset:
         BIDSのparticipants.tsvを読み込み、pandas.DataFrameを返す
         """
         fname = self.base_dir / "participants.tsv"
-        df = pd.read_tsv(fname, sep="\t")
+        df = pd.read_csv(fname, sep="\t")
 
         return df
 
@@ -718,8 +748,8 @@ class BaseDataset:
         params_epochs = proc_params_epochs(params_epochs)
 
         method = kwargs.get("method", "multitaper")
-        freqs = kwargs.get("freqs", range(1, 46))
-        n_cycles = kwargs.get("n_cycles", range(1, 46))
+        freqs = kwargs.get("freqs", list(range(1, 46)))
+        n_cycles = kwargs.get("n_cycles", list(range(1, 46)))
         use_fft = kwargs.get("use_fft", True)
         decim = kwargs.get("decim", 2)
         n_jobs = kwargs.get("n_jobs", -1)
@@ -729,6 +759,11 @@ class BaseDataset:
 
         concat_runs = kwargs.get("concat_runs", False)
         concat_sessions = kwargs.get("concat_sessions", False)
+
+        if isinstance(freqs, range):
+            freqs = list(freqs)
+        if isinstance(n_cycles, range):
+            n_cycles = list(n_cycles)
 
         params = dict(
             params_epochs=params_epochs,
