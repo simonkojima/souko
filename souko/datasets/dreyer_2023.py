@@ -16,6 +16,29 @@ class Dreyer2023(BaseDataset):
             subjects_list=subjects_list,
             sessions_list=sessions_list,
         )
+        self.trial_duration = 5
+        self.subject_code_list = [self.get_subject_code(subject) for subject in self.subjects_list]
+    def get_subject_code(self, subject):
+        if subject <= 60:
+            prefix = "A"
+        elif subject <= 81:
+            prefix = "B"
+        elif subject <= 87:
+            prefix = "C"
+
+        subject_code = f"{prefix}{subject}"
+
+        return subject_code
+
+    def get_sex(self, subject):
+        pat = self.get_participants()
+
+        subject_code = self.get_subject_code(subject)
+
+        return pat[pat["participant_id"] == subject_code]["sex"].tolist()[0]
+
+    def subject_code_to_subject(self, subject_code):
+        return int(subject_code[1:])
 
     def _get_raw(self, subject):
 

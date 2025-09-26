@@ -27,6 +27,14 @@ def concatrenate_event_ids(event_id_list):
     return out
 
 
+def is_event_ids_identical(event_ids):
+    event_id_0 = event_ids[0]
+    for event_id in event_ids[1:]:
+        if event_id_0 != event_id:
+            return False
+    return True
+
+
 def concatenate_tfrs(tfrs_list, add_offset_event_id=True):
     if add_offset_event_id:
         events = tfrs_list[0].events
@@ -39,9 +47,16 @@ def concatenate_tfrs(tfrs_list, add_offset_event_id=True):
             offset = np.max(tfrs.events[:, 2])
 
     events_list = [tfrs.events for tfrs in tfrs_list]
-    event_ids = [tfrs.event_id for tfrs in tfrs_list]
     new_events = concatenate_events(events_list=events_list)
-    new_event_id = concatrenate_event_ids(event_ids)
+
+    if add_offset_event_id:
+        event_ids = [tfrs.event_id for tfrs in tfrs_list]
+        new_event_id = concatrenate_event_ids(event_ids)
+    else:
+        event_ids = [tfrs.event_id for tfrs in tfrs_list]
+        if is_event_ids_identical(event_ids) is False:
+            raise RuntimeError("event_ids are not identical")
+        new_event_id = tfrs_list[0].event_id
 
     new_data = [tfrs.get_data() for tfrs in tfrs_list]
     new_data = np.concatenate(new_data, axis=0)
