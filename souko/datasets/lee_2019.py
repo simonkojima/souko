@@ -20,6 +20,9 @@ class Lee2019(BaseDataset):
     def get_subject_code(self, subject):
         return f"sub-{subject}"
 
+    def subject_code_to_subject(self, subject_code):
+        return int(subject_code.split("-")[1])
+
     def _get_raw(self, subject):
 
         base = self.base_dir / "raw" / f"sub-{subject}"
