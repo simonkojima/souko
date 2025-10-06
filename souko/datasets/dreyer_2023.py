@@ -18,6 +18,7 @@ class Dreyer2023(BaseDataset):
         )
         self.trial_duration = 5
         self.subject_code_list = [self.get_subject_code(subject) for subject in self.subjects_list]
+
     def get_subject_code(self, subject):
         if subject <= 60:
             prefix = "A"

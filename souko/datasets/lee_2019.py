@@ -17,6 +17,9 @@ class Lee2019(BaseDataset):
             sessions_list=sessions_list,
         )
 
+    def get_subject_code(self, subject):
+        return f"sub-{subject}"
+
     def _get_raw(self, subject):
 
         base = self.base_dir / "raw" / f"sub-{subject}"
@@ -25,10 +28,10 @@ class Lee2019(BaseDataset):
         for session in self.sessions_list:
             data[session] = {}
             fname = (
-                base
-                / f"ses-{session}"
-                / "eeg"
-                / f"sub-{subject}_ses-{session}_task-MItrain_eeg.fif"
+                    base
+                    / f"ses-{session}"
+                    / "eeg"
+                    / f"sub-{subject}_ses-{session}_task-MItrain_eeg.fif"
             )
 
             raw = mne.io.read_raw(fname)
@@ -90,15 +93,15 @@ class Lee2019(BaseDataset):
         return data
 
     def get_epochs_phase(
-        self,
-        subject,
-        l_freq=8,
-        h_freq=30,
-        order=4,
-        tmin=-5.0,
-        tmax=7.0,
-        baseline=None,
-        resample=128,
+            self,
+            subject,
+            l_freq=8,
+            h_freq=30,
+            order=4,
+            tmin=-5.0,
+            tmax=7.0,
+            baseline=None,
+            resample=128,
     ):
         epochs = self.get_epochs(
             subject,
