@@ -50,7 +50,6 @@ def save_mne_objs(data, save_base, suffix):
     files = {"session": [], "run": [], "fname": []}
     for session, session_data in data.items():
         for run, obj_run in session_data.items():
-
             fname = f"{session}_{run}{suffix}"
 
             files["session"].append(session)
@@ -198,15 +197,15 @@ class BaseDataset:
         return self._get_raw(subject)
 
     def _get_data(
-        self,
-        subject,
-        data_type,
-        params,
-        suffix=".msgpack",
-        func_get_data=None,
-        func_save_data=None,
-        func_load_data=None,
-        **kwargs,
+            self,
+            subject,
+            data_type,
+            params,
+            suffix=".msgpack",
+            func_get_data=None,
+            func_save_data=None,
+            func_load_data=None,
+            **kwargs,
     ):
         """
         インタフェース用関数
@@ -276,7 +275,7 @@ class BaseDataset:
             manifest = pd.DataFrame([canonical_params])
 
             save_base = (
-                self.base_dir / "derivatives" / data_type / hash / f"sub-{subject}"
+                    self.base_dir / "derivatives" / data_type / hash / f"sub-{subject}"
             )
 
             fname_manifest = self.base_dir / "derivatives" / data_type / "manifest"
@@ -322,10 +321,12 @@ class BaseDataset:
                 values = list(data[session].values())
 
                 if (isinstance(values[0], mne.Epochs)) or (
-                    isinstance(values[0], mne.EpochsArray)
-                    or (isinstance(values[0], mne.epochs.EpochsFIF))
+                        isinstance(values[0], mne.EpochsArray)
+                        or (isinstance(values[0], mne.epochs.EpochsFIF))
                 ):
                     data[session] = mne.concatenate_epochs(values)
+                elif isinstance(values[0], mne.time_frequency.tfr.BaseTFR):
+                    data[session] = utils.concatenate_tfrs(values)
                 else:
                     try:
                         data[session] = np.concatenate(values, axis=0)
@@ -336,10 +337,12 @@ class BaseDataset:
             values = list(data.values())
 
             if (isinstance(values[0], mne.Epochs)) or (
-                isinstance(values[0], mne.EpochsArray)
-                or (isinstance(values[0], mne.epochs.EpochsFIF))
+                    isinstance(values[0], mne.EpochsArray)
+                    or (isinstance(values[0], mne.epochs.EpochsFIF))
             ):
                 data = mne.concatenate_epochs(values)
+            elif isinstance(values[0], mne.time_frequency.tfr.BaseTFR):
+                data = utils.concatenate_tfrs(values)
             else:
                 try:
                     data = np.concatenate(values, axis=0)
@@ -408,9 +411,9 @@ class BaseDataset:
         return covs
 
     def get_covs(
-        self,
-        subject,
-        **kwargs,
+            self,
+            subject,
+            **kwargs,
     ):
         """
         Covariance Matrixを計算
@@ -548,13 +551,13 @@ class BaseDataset:
         return labels
 
     def get_labels(
-        self,
-        subject,
-        label_keys={"event:left": 0, "event:right": 1},
-        cache=True,
-        force_update=False,
-        concat_runs=False,
-        concat_sessions=False,
+            self,
+            subject,
+            label_keys={"event:left": 0, "event:right": 1},
+            cache=True,
+            force_update=False,
+            concat_runs=False,
+            concat_sessions=False,
     ):
         """
         ラベルデータ取得
@@ -622,9 +625,9 @@ class BaseDataset:
         return tfrs
 
     def get_epochs(
-        self,
-        subject,
-        **kwargs,
+            self,
+            subject,
+            **kwargs,
     ):
         """
         epochs取得用
@@ -718,9 +721,9 @@ class BaseDataset:
         return data
 
     def get_tfrs(
-        self,
-        subject,
-        **kwargs,
+            self,
+            subject,
+            **kwargs,
     ):
         """
         Time-Frequency Representationの計算
@@ -786,14 +789,16 @@ class BaseDataset:
             ),
             cache=cache,
             force_update=force_update,
+            concat_runs=concat_runs,
+            concat_sessions=concat_sessions,
         )
 
         return data
 
     def get_X_EA(
-        self,
-        subject,
-        **kwargs,
+            self,
+            subject,
+            **kwargs,
     ):
         """
         Euclidean Alignmentを適用したエポックデータ取得

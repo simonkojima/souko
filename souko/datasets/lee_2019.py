@@ -11,12 +11,12 @@ class Lee2019(BaseDataset):
     def __init__(self, base_dir="~/Documents/datasets/lee_2019"):
         subjects_list = list(range(1, 55))  # subjects 1-54
         sessions_list = [1, 2]
-        self.trial_duration = 4
         super().__init__(
             base_dir=Path(base_dir).expanduser(),
             subjects_list=subjects_list,
             sessions_list=sessions_list,
         )
+        self.trial_duration = 4
 
     def get_subject_code(self, subject):
         return f"sub-{subject}"
