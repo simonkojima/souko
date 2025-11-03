@@ -46,6 +46,21 @@ def proc_params_epochs(params):
     return params
 
 
+def proc_params_tfrs(params):
+    params = set_dict(params, "params_epochs", {})
+    params["params_epochs"] = proc_params_epochs(params["params_epochs"])
+    params = set_dict(params, "method", "multitaper")
+    params = set_dict(params, "freqs", list(range(1, 46)))
+    params = set_dict(params, "n_cycles", list(range(1, 46)))
+    params = set_dict(params, "use_fft", True)
+    params = set_dict(params, "decim", 2)
+    params = set_dict(params, "n_jobs", -1)
+
+    params = utils.type_params(params)
+
+    return params
+
+
 def save_mne_objs(data, save_base, suffix):
     files = {"session": [], "run": [], "fname": []}
     for session, session_data in data.items():
@@ -60,6 +75,35 @@ def save_mne_objs(data, save_base, suffix):
 
     df = pd.DataFrame(files)
     df.to_csv(save_base / "files.tsv", sep="\t", index=False)
+
+
+def save_average_tfr(data, save_base, suffix, concat_runs, concat_sessions, class_list):
+    if concat_runs and concat_sessions:
+        files = {"class": [], "fname": []}
+
+        for cls, tfr in data.items():
+            fname = f"{cls}{suffix}"
+            files["class"].append(cls)
+            files["fname"].append(fname)
+
+            tfr.save(save_base / fname, overwrite=True)
+
+    df = pd.DataFrame(files)
+    df.to_csv(save_base / "files.tsv", sep="\t", index=False)
+
+
+def load_average_tfr(base, suffix, concat_runs, concat_sessions):
+    df = pd.read_csv(base / "files.tsv", sep="\t")
+
+    if concat_runs and concat_sessions:
+        classes = df["class"].tolist()
+        fnames = df["fname"].tolist()
+
+        data = {}
+        for cls, fname in zip(classes, fnames):
+            data[cls] = mne.time_frequency.read_tfrs(base / fname)
+
+    return data
 
 
 def load_mne_objs(base, suffix, func_load):
@@ -791,6 +835,90 @@ class BaseDataset:
             force_update=force_update,
             concat_runs=concat_runs,
             concat_sessions=concat_sessions,
+        )
+
+        return data
+
+    def _get_average_tfr(self, subject, params):
+
+        params_tfrs = params["params_tfrs"]
+
+        baseline = params["baseline"]
+        mode = params["mode"]
+        class_list = params["class_list"]
+        concat_runs = params["concat_runs"]
+        concat_sessions = params["concat_sessions"]
+
+        tfrs = self.get_tfrs(subject=subject, **params_tfrs, concat_runs=concat_runs, concat_sessions=concat_sessions)
+
+        if concat_runs and concat_sessions:
+            tfrs = tfrs.apply_baseline(baseline=baseline, mode=mode)
+            tfr = {}
+            for cls in class_list:
+                tfr[cls] = tfrs[cls].average()
+        else:
+            raise NotImplementedError()
+
+        return tfr
+
+    def get_average_tfr(
+            self,
+            subject,
+            **kwargs,
+    ):
+        """
+        Average Time-Frequency Representationの計算
+
+        Parameters
+        ----------
+        subject: int
+        params_tfrs: dict
+            ``BaseDataset.get_tfrs`` に渡される引数
+        baseline: tuple, list, or None, default = [-2.0, 0.0]
+        cache: bool, default = True,
+        force_update: bool, default = False
+        concat_runs: bool, default = False
+        concat_sessions: bool, default = False
+        """
+        data_type = "average-tfr"
+        suffix = "-tfr.hdf5"
+
+        params_tfrs = kwargs.get("params_tfrs", {})
+        params_tfrs = proc_params_tfrs(params_tfrs)
+
+        baseline = kwargs.get("baseline", [-2.0, 0.0])
+        mode = kwargs.get("mode", "percent")
+        class_list = kwargs.get("class_list", ["left_hand", "right_hand"])
+
+        cache = kwargs.get("cache", True)
+        force_update = kwargs.get("force_update", False)
+
+        concat_runs = kwargs.get("concat_runs", False)
+        concat_sessions = kwargs.get("concat_sessions", False)
+
+        params = dict(
+            params_tfrs=params_tfrs,
+            baseline=baseline,
+            mode=mode,
+            class_list=class_list,
+            concat_runs=concat_runs,
+            concat_sessions=concat_sessions,
+        )
+
+        data = self._get_data(
+            subject,
+            data_type=data_type,
+            params=params,
+            suffix=suffix,
+            func_get_data=functools.partial(self._get_average_tfr),
+            func_save_data=functools.partial(save_average_tfr, concat_runs=concat_runs, concat_sessions=concat_sessions,
+                                             class_list=class_list),
+            func_load_data=functools.partial(load_average_tfr, concat_runs=concat_runs,
+                                             concat_sessions=concat_sessions),
+            cache=cache,
+            force_update=force_update,
+            concat_runs=False,
+            concat_sessions=False,
         )
 
         return data

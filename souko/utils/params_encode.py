@@ -7,17 +7,18 @@ import pandas as pd
 
 
 def type_params(params):
-
     keys_float = [
         "l_freq",
         "h_freq",
         "tmin",
         "tmax",
-        "baseline",
         "tmin_epochs",
         "tmax_epochs",
     ]
     keys_int = ["order", "resample"]
+    keys_float_in_list = ["baseline"]
+
+    keys_list = ["freqs", "n_cycles", "class_list"]
 
     keys = list(params.keys())
 
@@ -26,10 +27,21 @@ def type_params(params):
             if params[key] is not None:
                 params[key] = float(params[key])
 
+    for key in keys_float_in_list:
+        if key in keys:
+            if params[key] is not None:
+                for idx in range(len(params[key])):
+                    params[key][idx] = float(params[key][idx])
+
     for key in keys_int:
         if key in keys:
             if params[key] is not None:
                 params[key] = int(params[key])
+
+    for key in keys_list:
+        if key in keys:
+            if params[key] is not None:
+                params[key] = list(params[key])
 
     if "iir_params" in keys:
         params["iir_params"] = type_params(params["iir_params"])
@@ -53,7 +65,6 @@ def deep_sort(obj):
 
 
 def encode_params(params):
-
     params = type_params(params)
 
     if isinstance(params, argparse.Namespace):
@@ -98,7 +109,6 @@ def nan_to_none(obj):
 
 
 def decode_params(series):
-
     print(type(series))
 
     if not isinstance(series, pd.Series):
