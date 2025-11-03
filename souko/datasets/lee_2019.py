@@ -81,11 +81,23 @@ class Lee2019(BaseDataset):
 
                 # raw.set_montage("brainproducts-RNP-BA-128")
 
+                events, event_id = mne.events_from_annotations(raw)
+
+                new_event_id = {f"left_hand/ses-{session}": 10 * session + 1,
+                                f"right_hand/ses-{session}": 10 * session + 2}
+
+                events = mne.merge_events(events, ids=[event_id["left_hand"]], new_id=10 * session + 1,
+                                          replace_events=True)
+                events = mne.merge_events(events, ids=[event_id["right_hand"]], new_id=10 * session + 2,
+                                          replace_events=True)
+
                 epochs = mne.Epochs(
                     raw=raw,
                     tmin=tmin,
                     tmax=tmax,
                     baseline=baseline,
+                    events=events,
+                    event_id=new_event_id,
                 )
 
                 if resample is not None:

@@ -3,10 +3,9 @@ import mne
 
 
 def concatenate_events(events_list, add_offset_sample=True):
-
     offset = np.max(events_list[0][:, 0])
 
-    for events in events_list[1 : len(events_list)]:
+    for events in events_list[1: len(events_list)]:
         events[:, 0] += int(offset)
         offset = np.max(events[:, 0])
 
@@ -15,7 +14,7 @@ def concatenate_events(events_list, add_offset_sample=True):
     return events
 
 
-def concatrenate_event_ids(event_id_list):
+def concatenate_event_ids(event_id_list):
     seen = set()
     out = {}
     for d in event_id_list:
@@ -41,7 +40,7 @@ def concatenate_tfrs(tfrs_list, add_offset_event_id=True):
         ids = events[:, 2]
         offset = np.max(ids)
 
-        for tfrs in tfrs_list[1 : len(tfrs_list)]:
+        for tfrs in tfrs_list[1: len(tfrs_list)]:
             tfrs.events[:, 2] += int(offset)
             tfrs.event_id = {k: int(v + offset) for k, v in tfrs.event_id.items()}
             offset = np.max(tfrs.events[:, 2])
@@ -51,7 +50,7 @@ def concatenate_tfrs(tfrs_list, add_offset_event_id=True):
 
     if add_offset_event_id:
         event_ids = [tfrs.event_id for tfrs in tfrs_list]
-        new_event_id = concatrenate_event_ids(event_ids)
+        new_event_id = concatenate_event_ids(event_ids)
     else:
         event_ids = [tfrs.event_id for tfrs in tfrs_list]
         if is_event_ids_identical(event_ids) is False:

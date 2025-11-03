@@ -1,3 +1,6 @@
+import tqdm
+
+
 class MemoryCache:
     def __init__(self, subjects):
         """
@@ -8,11 +11,11 @@ class MemoryCache:
         self.data = {}
 
     def load(
-        self, name, func_get_data, concat_runs=False, concat_sessions=False, **kwargs
+            self, name, func_get_data, concat_runs=False, concat_sessions=False, verbose=True, **kwargs,
     ):
         self.data[name] = {}
 
-        for subject in self.subjects:
+        for subject in tqdm.tqdm(self.subjects, disable=not verbose):
             data = func_get_data(
                 subject=subject,
                 **kwargs,
