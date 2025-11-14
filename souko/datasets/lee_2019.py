@@ -83,8 +83,8 @@ class Lee2019(BaseDataset):
 
                 events, event_id = mne.events_from_annotations(raw)
 
-                new_event_id = {f"left_hand/ses-{session}": 10 * session + 1,
-                                f"right_hand/ses-{session}": 10 * session + 2}
+                new_event_id = {f"left_hand/sub-{subject}/ses-{session}": 10 * session + 1,
+                                f"right_hand/sub-{subject}/ses-{session}": 10 * session + 2}
 
                 events = mne.merge_events(events, ids=[event_id["left_hand"]], new_id=10 * session + 1,
                                           replace_events=True)
