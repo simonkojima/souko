@@ -2,6 +2,7 @@ import os
 import warnings
 import pandas as pd
 import functools
+import json
 
 from . import utils
 import mne
@@ -333,6 +334,10 @@ class BaseDataset:
                 else:
                     data = func_load_data(save_base, suffix)
             else:
+
+                if "picks" in list(params.keys()):
+                    params["picks"] = json.loads(params["picks"])
+
                 data = func_get_data(subject, params)
                 save_base.mkdir(parents=True, exist_ok=True)
 
@@ -344,6 +349,18 @@ class BaseDataset:
 
                 if os.path.exists(f"{fname_manifest}.parquet"):
                     manifest_exist = pd.read_parquet(f"{fname_manifest}.parquet")
+
+                    if "picks" in list(manifest_exist.columns):
+                        picks_list = manifest_exist["picks"].tolist()
+
+                        new_picks_list = []
+                        for p in picks_list:
+                            if not isinstance(p, str):
+                                new_picks_list.append(json.dumps(p))
+                            else:
+                                new_picks_list.append(p)
+
+                        manifest_exist["picks"] = new_picks_list
 
                     hash_list = manifest_exist["hash"].tolist()
                     if hash in hash_list:

@@ -18,6 +18,8 @@ def type_params(params):
     keys_int = ["order", "resample"]
     keys_float_in_list = ["baseline"]
 
+    keys_json = ["picks"]
+
     keys_list = ["freqs", "n_cycles", "class_list"]
 
     keys = list(params.keys())
@@ -42,6 +44,11 @@ def type_params(params):
         if key in keys:
             if params[key] is not None:
                 params[key] = list(params[key])
+
+    for key in keys_json:
+        if key in keys:
+            if params[key] is not None:
+                params[key] = json.dumps(params[key])
 
     if "iir_params" in keys:
         params["iir_params"] = type_params(params["iir_params"])
