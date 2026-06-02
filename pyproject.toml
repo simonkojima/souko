@@ -1,3 +1,24 @@
 [build-system]
-requires = ["setuptools>=42"]
+requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "souko"
+description = "Souko: data exporter/loader"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dynamic = ["version"]
+
+authors = [
+    { name = "Simon Kojima" },
+]
+
+dependencies = []
+
+[tool.setuptools.dynamic]
+version = { attr = "souko.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["souko*"]

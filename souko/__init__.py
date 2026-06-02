@@ -1,8 +1,3 @@
-__version__ = "0.0.1a"
+__version__ = "0.1.0"
 
-from .base import *
-from .memory_cache import *
-
-from . import datasets
-from . import utils
-from . import proc
+from . import xy
