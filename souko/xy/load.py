@@ -98,6 +98,8 @@ def _get_dreyer_2023(
 ):
     if base is None:
         base = Path.home()
+    else:
+        base = Path(base)
 
     base = (
             base
@@ -173,6 +175,8 @@ def _get_dreyer_2023_cross(
 
     if base is None:
         base = Path.home()
+    else:
+        base = Path(base)
 
     base = (
             base
@@ -226,6 +230,8 @@ def _get_lee_2019(
 ):
     if base is None:
         base = Path.home()
+    else:
+        base = Path(base)
 
     base = base / "datasets" / "lee2019" / "x_y" / f"sub-{subject}"
 
@@ -288,6 +294,8 @@ def _get_lee_2019_mi_cross(
 ):
     if base is None:
         base = Path.home()
+    else:
+        base = Path(base)
 
     X_list, y_list = [], []
     for session in [1, 2]:
