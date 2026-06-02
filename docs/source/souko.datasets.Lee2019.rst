@@ -23,6 +23,7 @@
       ~Lee2019.get_participants
       ~Lee2019.get_raw
       ~Lee2019.get_tfrs
+      ~Lee2019.update_manifest
    
    
 

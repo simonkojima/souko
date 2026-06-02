@@ -21,7 +21,9 @@
       ~Dreyer2023.get_manifest
       ~Dreyer2023.get_participants
       ~Dreyer2023.get_raw
+      ~Dreyer2023.get_subject_code
       ~Dreyer2023.get_tfrs
+      ~Dreyer2023.update_manifest
    
    
 

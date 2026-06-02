@@ -22,6 +22,7 @@
       ~BaseDataset.get_participants
       ~BaseDataset.get_raw
       ~BaseDataset.get_tfrs
+      ~BaseDataset.update_manifest
    
    
 
