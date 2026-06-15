@@ -324,7 +324,9 @@ def _get_lee_2019_mi_cross(
             if online is False:
                 X = np.load(base_session / f"sub-{subject}_ses-{session}_X_ea.npy")
             else:
-                X = np.load(base_session / f"sub-{subject}_ses-{session}_X_ea_online.npy")
+                X = np.load(
+                    base_session / f"sub-{subject}_ses-{session}_X_ea_online.npy"
+                )
 
         y = np.load(base_session / f"sub-{subject}_ses-{session}_y.npy")
 
@@ -340,7 +342,10 @@ def _get_lee_2019_mi_cross(
         "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
     }
 
-    return data_dict
+    if return_info:
+        return data_dict, info
+    else:
+        return data_dict
 
 
 MAPPING = {
