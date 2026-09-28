@@ -42,6 +42,7 @@ def labels_from_epochs(epochs, mappings=None):
     return np.array(y)
 
 
+"""
 def get_channel_pos(ch_name, layout_name="EEG1005", ref="Cz"):
     layout = mne.channels.read_layout("EEG1005")
 
@@ -56,7 +57,7 @@ def get_channel_pos(ch_name, layout_name="EEG1005", ref="Cz"):
     pos_ref = pos_ref[0, 0:2]
 
     return pos - pos_ref
-
+"""
 
 def split_data(X, y, ratio=0.8):
     I_0 = np.where(y == 0)[0]
@@ -139,7 +140,7 @@ def _get_dreyer_2023(
         data_dict[split] = {
             "eeg": X,
             "label": y,
-            "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+            #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
         }
 
         if valid:
@@ -151,7 +152,7 @@ def _get_dreyer_2023(
             data_dict["train"]["label"] = y_train
             data_dict["valid"]["eeg"] = X_valid
             data_dict["valid"]["label"] = y_valid
-            data_dict["valid"]["pos"] = [get_channel_pos(ch) for ch in info["ch_names"]]
+            #data_dict["valid"]["pos"] = [get_channel_pos(ch) for ch in info["ch_names"]]
 
     if return_info:
         return data_dict, info
@@ -209,7 +210,7 @@ def _get_dreyer_2023_cross(
     data_dict = {
         "eeg": X,
         "label": y,
-        "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+        #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
     }
 
     if return_info:
@@ -261,20 +262,20 @@ def _get_lee_2019(
     data_dict["train"] = {
         "eeg": X_train,
         "label": y_train,
-        "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+        #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
     }
 
     if valid:
         data_dict["valid"] = {
             "eeg": X_valid,
             "label": y_valid,
-            "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+            #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
         }
 
     data_dict["test"] = {
         "eeg": X_test,
         "label": y_test,
-        "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+        #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
     }
 
     return data_dict
@@ -339,7 +340,7 @@ def _get_lee_2019_mi_cross(
     data_dict = {
         "eeg": X,
         "label": y,
-        "pos": [get_channel_pos(ch) for ch in info["ch_names"]],
+        #"pos": [get_channel_pos(ch) for ch in info["ch_names"]],
     }
 
     if return_info:
