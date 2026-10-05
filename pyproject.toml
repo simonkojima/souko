@@ -14,7 +14,10 @@ authors = [
     { name = "Simon Kojima" },
 ]
 
-dependencies = []
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+export = ["mne>=1.8"]
 
 [tool.setuptools.dynamic]
 version = { attr = "souko.__version__" }
