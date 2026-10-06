@@ -7,6 +7,8 @@ from .utils import get_proc_name
 
 _ALIASES = {"dreyer_2023": "Dreyer2023", "lee_2019": "Lee2019_MI"}
 
+DEFAULT_TMAX = {"Dreyer2023": 5.0, "Lee2019_MI": 4.0, "BNCI2014_004": 7.5}
+
 
 def _root(base):
     return (Path.home() if base is None else Path(base)) / "datasets"
@@ -87,7 +89,7 @@ def get_data(name="Dreyer2023", subject=None, session=1, valid=False,
     """
     name = _name(name)
     tmin = 0.5 if tmin is None else tmin
-    tmax = (4 if name == "Lee2019_MI" else 5) if tmax is None else tmax
+    tmax = DEFAULT_TMAX.get(name, 5.0) if tmax is None else tmax
     path, prefix, available, info = _session(
         name, subject, session, base, resample, tmin, tmax, l_freq, h_freq)
     if strategy == "preset":
@@ -126,7 +128,7 @@ def get_data_cross(name="Dreyer2023", subject=None, sessions=None, ea=False,
     if not sessions or len(set(sessions)) != len(sessions):
         raise ValueError("Select at least one session without duplicates")
     tmin = 0.5 if tmin is None else tmin
-    tmax = (4 if name == "Lee2019_MI" else 5) if tmax is None else tmax
+    tmax = DEFAULT_TMAX.get(name, 5.0) if tmax is None else tmax
     data, metadata = [], {}
     for session in sessions:
         path, prefix, available, info = _session(
