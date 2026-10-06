@@ -42,8 +42,10 @@ Exports live under `~/datasets/<dataset>/sub-<id>/ses-<id>/<preprocessing>/`.
 `export_data(save_base=...)` sets the dataset root; loader `base=...` sets
 its parent (the directory containing `datasets`). Specify the same processing
 parameters on export and load. Defaults are 128 Hz, 7–30 Hz, tmin=0.5,
-tmax=4 for Lee2019_MI and 5 otherwise; export uses dataset intervals when
-bounds are omitted.
+tmax comes from `DEFAULT_TMAX` in `souko/xy/load.py` (4 for Lee2019_MI,
+7.5 for BNCI2014_004, and 5 for unlisted datasets). Add dataset entries there
+to configure loader defaults; an explicit `tmax` overrides them. Export uses
+dataset intervals when bounds are omitted.
 
 Run files contain X, y, and original event sample positions. Session metadata
 records original session/run names, trial counts, label codes, preprocessing,
