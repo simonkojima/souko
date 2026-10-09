@@ -134,11 +134,6 @@ def export_data(
                     )
                 )
 
-                print(save_base)
-                print(save_base_session)
-
-                exit()
-
                 save_base_session.mkdir(parents=True, exist_ok=True)
 
                 print(
