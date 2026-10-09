@@ -7,7 +7,7 @@ from .utils import get_proc_name
 
 _ALIASES = {"dreyer_2023": "Dreyer2023", "lee_2019": "Lee2019_MI"}
 
-DEFAULT_TMAX = {"Dreyer2023": 5.0, "Lee2019_MI": 4.0, "BNCI2014_004": 7.5}
+DEFAULT_TMAX = {"Dreyer2023": 5.0, "Lee2019_MI": 4.0, "BNCI2014_004": 7.5, "GrosseWentrup2009": 7.0, "Schirrmeister2017": 4.0}
 
 
 def _root(base):

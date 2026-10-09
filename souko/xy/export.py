@@ -3,13 +3,20 @@ import json
 from pathlib import Path
 import numpy as np
 
-from .utils import get_proc_name
+from .utils import get_proc_name, expand_variables
 
 
-def preprocess_raw(raw, l_freq, h_freq):
+def preprocess_raw(raw, l_freq, h_freq, f_order, phase, picks, n_jobs=None):
     raw.load_data()
-    raw.pick(picks="eeg")
-    raw.filter(l_freq=l_freq, h_freq=h_freq)
+    raw.pick(picks=picks)
+    raw.filter(
+        l_freq=l_freq,
+        h_freq=h_freq,
+        method="iir",
+        phase=phase,
+        iir_params={"ftype": "butter", "btype": "bandpass", "order": 4},
+        n_jobs=n_jobs,
+    )
     return raw
 
 
@@ -26,13 +33,13 @@ def _save_data(X, y, save_base, subject, session_num, run_num):
 
 
 def export_meta_data(
-        save_base,
-        subject,
-        session_num,
-        raw,
-        resample,
-        times,
-        event_id,
+    save_base,
+    subject,
+    session_num,
+    raw,
+    resample,
+    times,
+    event_id,
 ):
     if isinstance(times, np.ndarray):
         times = times.tolist()
@@ -52,17 +59,23 @@ def export_meta_data(
 
 
 def export_data(
-        dataset,
-        cache_config=None,
-        resample=None,
-        l_freq=7,
-        h_freq=30,
-        tmin=None,
-        tmax=None,
-        event_id="auto",
-        save_base=None,
-        ea=True,
-        online=True,
+    dataset,
+    cache_config=None,
+    resample=None,
+    picks="eeg",
+    l_freq=7,
+    h_freq=30,
+    f_order=4,
+    phase="zero",
+    tmin=None,
+    tmax=None,
+    event_id="auto",
+    save_base=None,
+    ea=True,
+    cn=True,
+    online=True,
+    name="${NAME}",
+    n_jobs=None,
 ):
     """Export runs plus cached session EA representations.
 
@@ -70,16 +83,21 @@ def export_data(
     the complete session; online EA is delegated to transfer_bci. Neither
     cached representation is refitted when loaders split the trials.
     """
+
     if cache_config is None:
         cache_config = {"use": True}
     if ea:
         from transfer_bci.euclidean import euclidean_alignment
+    if cn:
+        from transfer_bci.euclidean import channel_normalization
     dataset_name = dataset.__class__.__name__
 
+    name_dir = expand_variables(name, {"NAME": dataset_name})
+
     if save_base is None:
-        save_base = Path.home() / "datasets" / dataset_name
+        save_base = Path.home() / "datasets" / name_dir
     else:
-        save_base = Path(save_base) / dataset_name
+        save_base = Path(save_base) / name_dir
 
     if tmin is None:
         tmin = dataset.interval[0]
@@ -101,16 +119,16 @@ def export_data(
             for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
 
                 save_base_session = (
-                        save_base
-                        / f"sub-{subject}"
-                        / f"ses-{session_idx + 1}"
-                        / get_proc_name(
-                    resample=resample,
-                    tmin=tmin,
-                    tmax=tmax,
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                )
+                    save_base
+                    / f"sub-{subject}"
+                    / f"ses-{session_idx + 1}"
+                    / get_proc_name(
+                        resample=resample,
+                        tmin=tmin,
+                        tmax=tmax,
+                        l_freq=l_freq,
+                        h_freq=h_freq,
+                    )
                 )
 
                 save_base_session.mkdir(parents=True, exist_ok=True)
@@ -118,7 +136,15 @@ def export_data(
                 print(
                     f"Exporting data for subject {subject}, session {session_idx + 1}, run {run_idx + 1}"
                 )
-                run_raw = preprocess_raw(run_raw.copy(), l_freq=l_freq, h_freq=h_freq)
+                run_raw = preprocess_raw(
+                    run_raw.copy(),
+                    l_freq=l_freq,
+                    h_freq=h_freq,
+                    f_order=f_order,
+                    phase=phase,
+                    picks=picks,
+                    n_jobs=n_jobs,
+                )
 
                 events, run_event_id = mne.events_from_annotations(
                     raw=run_raw,
@@ -128,8 +154,10 @@ def export_data(
                 for label, code in run_event_id.items():
                     if label in session_event_id and session_event_id[label] != code:
                         raise ValueError(f"Inconsistent event code for {label}")
-                    if any(other != label and value == code
-                           for other, value in session_event_id.items()):
+                    if any(
+                        other != label and value == code
+                        for other, value in session_event_id.items()
+                    ):
                         raise ValueError(f"Event code {code} has inconsistent labels")
                     session_event_id[label] = code
 
@@ -144,7 +172,7 @@ def export_data(
 
                 if resample is not None:
                     epochs.load_data()
-                    epochs = epochs.resample(resample)
+                    epochs = epochs.resample(resample, n_jobs=n_jobs)
 
                 epochs = epochs.crop(tmin=tmin, tmax=tmax)
 
@@ -155,11 +183,14 @@ def export_data(
                 y_ses.append(y)
 
                 times = epochs.times
-                np.save(save_base_session /
-                        f"sub-{subject}_ses-{session_idx + 1}_run-{run_idx + 1}_samples.npy",
-                        epochs.events[:, 0])
-                run_manifest.append({"id": run_idx + 1, "name": str(run_name),
-                                     "n_trials": len(y)})
+                np.save(
+                    save_base_session
+                    / f"sub-{subject}_ses-{session_idx + 1}_run-{run_idx + 1}_samples.npy",
+                    epochs.events[:, 0],
+                )
+                run_manifest.append(
+                    {"id": run_idx + 1, "name": str(run_name), "n_trials": len(y)}
+                )
 
                 _save_data(
                     X=X,
@@ -193,33 +224,68 @@ def export_data(
                 y,
             )
 
-            variants = {"ea": "session" if ea else None,
-                        "ea_online": "session_online" if ea and online else None}
             for suffix, enabled, is_online in (
-                    ("ea", ea, False), ("ea_online", ea and online, True)):
-                filename = save_base_session / f"sub-{subject}_ses-{session_idx + 1}_X_{suffix}.npy"
+                ("ea", ea, False),
+                ("ea_online", ea and online, True),
+            ):
+                filename = (
+                    save_base_session
+                    / f"sub-{subject}_ses-{session_idx + 1}_X_{suffix}.npy"
+                )
                 if enabled:
-                    aligned = (euclidean_alignment(X, online=True) if is_online
-                               else euclidean_alignment(X))
+                    aligned = (
+                        euclidean_alignment(X, online=True)
+                        if is_online
+                        else euclidean_alignment(X)
+                    )
                     np.save(filename, aligned)
                 else:
                     filename.unlink(missing_ok=True)
-            metadata_path = save_base_session / f"sub-{subject}_ses-{session_idx + 1}_meta.json"
+
+            for suffix, enabled, is_online in (
+                ("cn", cn, False),
+                ("cn_online", cn and online, True),
+            ):
+                filename = (
+                    save_base_session
+                    / f"sub-{subject}_ses-{session_idx + 1}_X_{suffix}.npy"
+                )
+                if enabled:
+                    aligned = (
+                        channel_normalization(X, online=True)
+                        if is_online
+                        else channel_normalization(X)
+                    )
+                    np.save(filename, aligned)
+                else:
+                    filename.unlink(missing_ok=True)
+
+            metadata_path = (
+                save_base_session / f"sub-{subject}_ses-{session_idx + 1}_meta.json"
+            )
             with open(metadata_path) as stream:
                 metadata = json.load(stream)
-            metadata.update({
-                "schema_version": 1, "dataset": dataset_name,
-                "sfreq": float(epochs.info["sfreq"]),
-                "subject": subject, "session": session_idx + 1,
-                "session_name": str(session_name), "runs": run_manifest,
-                "event_id": session_event_id,
-                "representations": variants,
-                "preprocessing": {"resample": resample, "tmin": tmin,
-                                  "tmax": tmax, "l_freq": l_freq, "h_freq": h_freq},
-            })
+            metadata.update(
+                {
+                    "schema_version": 1,
+                    "dataset": dataset_name,
+                    "sfreq": float(epochs.info["sfreq"]),
+                    "subject": subject,
+                    "session": session_idx + 1,
+                    "session_name": str(session_name),
+                    "runs": run_manifest,
+                    "event_id": session_event_id,
+                    "preprocessing": {
+                        "resample": resample,
+                        "tmin": tmin,
+                        "tmax": tmax,
+                        "l_freq": l_freq,
+                        "h_freq": h_freq,
+                    },
+                }
+            )
             with open(metadata_path, "w") as stream:
                 json.dump(metadata, stream)
-
 
 
 if __name__ == "__main__":

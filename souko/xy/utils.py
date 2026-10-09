@@ -1,3 +1,6 @@
+import re
+
+
 def fmt(v):
     if isinstance(v, float):
         return f"{v:g}"
@@ -6,3 +9,11 @@ def fmt(v):
 
 def get_proc_name(resample, tmin, tmax, l_freq, h_freq):
     return f"resample-{fmt(resample)}_tmin-{fmt(tmin)}_tmax-{fmt(tmax)}_l_freq-{fmt(l_freq)}_h_freq-{fmt(h_freq)}"
+
+
+def expand_variables(text, variables):
+    return re.sub(
+        r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}",
+        lambda match: variables.get(match.group(1), match.group(0)),
+        text,
+    )
