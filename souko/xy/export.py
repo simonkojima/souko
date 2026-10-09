@@ -92,6 +92,9 @@ def export_data(
         from transfer_bci.euclidean import channel_normalization
     dataset_name = dataset.__class__.__name__
 
+    if name == "":
+        raise ValueError("Name can not be empty.")
+
     name_dir = expand_variables(name, {"NAME": dataset_name})
 
     if save_base is None:
@@ -130,6 +133,11 @@ def export_data(
                         h_freq=h_freq,
                     )
                 )
+
+                print(save_base)
+                print(save_base_session)
+
+                exit()
 
                 save_base_session.mkdir(parents=True, exist_ok=True)
 
