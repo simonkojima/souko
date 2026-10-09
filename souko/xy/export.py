@@ -14,7 +14,7 @@ def preprocess_raw(raw, l_freq, h_freq, f_order, phase, picks, n_jobs=None):
         h_freq=h_freq,
         method="iir",
         phase=phase,
-        iir_params={"ftype": "butter", "btype": "bandpass", "order": 4},
+        iir_params={"ftype": "butter", "btype": "bandpass", "order": f_order},
         n_jobs=n_jobs,
     )
     return raw
