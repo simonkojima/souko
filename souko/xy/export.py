@@ -125,13 +125,13 @@ def export_data(
                     save_base
                     / f"sub-{subject}"
                     / f"ses-{session_idx + 1}"
-                    / get_proc_name(
-                        resample=resample,
-                        tmin=tmin,
-                        tmax=tmax,
-                        l_freq=l_freq,
-                        h_freq=h_freq,
-                    )
+                    #/ get_proc_name(
+                    #    resample=resample,
+                    #    tmin=tmin,
+                    #    tmax=tmax,
+                    #    l_freq=l_freq,
+                    #    h_freq=h_freq,
+                    #)
                 )
 
                 save_base_session.mkdir(parents=True, exist_ok=True)

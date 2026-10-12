@@ -38,14 +38,17 @@ data = get_data("Dreyer2023", subject=1, strategy="preset")
 
 ## Cache and metadata
 
-Exports live under `~/datasets/<dataset>/sub-<id>/ses-<id>/<preprocessing>/`.
-`export_data(save_base=...)` sets the dataset root; loader `base=...` sets
-its parent (the directory containing `datasets`). Specify the same processing
-parameters on export and load. Defaults are 128 Hz, 7–30 Hz, tmin=0.5,
-tmax comes from `DEFAULT_TMAX` in `souko/xy/load.py` (4 for Lee2019_MI,
-7.5 for BNCI2014_004, and 5 for unlisted datasets). Add dataset entries there
-to configure loader defaults; an explicit `tmax` overrides them. Export uses
-dataset intervals when bounds are omitted.
+Exports live under `~/datasets/<name>/sub-<id>/ses-<id>/`.
+`export_data(save_base=...)` and loader `base=...` both specify the same
+export root (default `~/datasets`). Set loader `name` to the exact directory
+name produced by export; it defaults to the dataset class name on export.
+Loaders read the saved arrays directly. Preprocessing parameters are supplied
+only during export and recorded in metadata, with no preprocessing subfolder.
+
+```python
+export_data(dataset, save_base="/data/eeg", name="experiment_a", resample=128)
+data = get_data("experiment_a", base="/data/eeg", subject=1)
+```
 
 Run files contain X, y, and original event sample positions. Session metadata
 records original session/run names, trial counts, label codes, preprocessing,
@@ -72,10 +75,11 @@ to future covariance arrays with the same trial ordering.
 - Dreyer's default is now a class-wise chronological split; pass
   `strategy="preset"` to retain the previous run selection.
 - Lee loads the common exporter layout. Old `lee2019/x_y` caches must be
-  re-exported; existing common-format run caches remain readable.
+  re-exported; run filenames remain unchanged.
 - Label mapping matches exact slash-delimited event tokens and rejects
   ambiguous or missing mappings.
-- Dataset aliases `dreyer_2023` and `lee_2019` remain accepted.
+- Loader names now identify exact saved directories. Older caches with a
+  preprocessing subfolder must be re-exported or moved to the session directory.
 
 ## Dependencies and checks
 

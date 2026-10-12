@@ -5,7 +5,6 @@ from pathlib import Path
 import numpy as np
 from souko.split import split_indices, split_data
 from souko.xy.load import get_data, get_data_cross, subject_list, sessions_list
-from souko.xy.utils import get_proc_name
 
 
 class SplitTests(unittest.TestCase):
@@ -38,7 +37,7 @@ class LoaderTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.base = Path(self.temp.name)
-        self.path = self.base / 'datasets' / 'Custom' / 'sub-3' / 'ses-1' / get_proc_name(128, .5, 5, 7, 30)
+        self.path = self.base / 'Custom' / 'sub-3' / 'ses-1'
         self.path.mkdir(parents=True)
         self.prefix = 'sub-3_ses-1'
         self.X = np.arange(24).reshape(12, 2, 1)
@@ -48,6 +47,8 @@ class LoaderTests(unittest.TestCase):
             np.save(self.path / f'{self.prefix}_run-{run}_y.npy', self.y[sl])
         np.save(self.path / f'{self.prefix}_X_ea.npy', self.X + 100)
         np.save(self.path / f'{self.prefix}_X_ea_online.npy', self.X + 200)
+        np.save(self.path / f'{self.prefix}_X_cn.npy', self.X + 300)
+        np.save(self.path / f'{self.prefix}_X_cn_online.npy', self.X + 400)
         (self.path / f'{self.prefix}_meta.json').write_text(json.dumps({'session_name': 'original'}))
 
     def tearDown(self):
@@ -78,6 +79,14 @@ class LoaderTests(unittest.TestCase):
             self.load(online=True)
         with self.assertRaises(ValueError):
             self.load(runs={'train': [1], 'test': [1]})
+
+    def test_channel_normalization_cache(self):
+        for online, offset in ((False, 300), (True, 400)):
+            data = self.load(alignment=True, alignment_mode="channel_norm", online=online)
+            np.testing.assert_array_equal(data['train']['eeg'], self.X[:9] + offset)
+            cross = get_data_cross('Custom', subject=3, base=self.base,
+                                   alignment=True, alignment_mode="channel_norm", online=online)
+            np.testing.assert_array_equal(cross['eeg'], self.X + offset)
 
     def test_cross_metadata(self):
         data, info = get_data_cross('Custom', subject=3, base=self.base, return_info=True)
