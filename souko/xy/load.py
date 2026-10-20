@@ -40,8 +40,6 @@ def _session(name, subject, session, base):
 
 
 def _read(path, prefix, runs, available, alignment, alignment_mode, online):
-    if online and not alignment:
-        raise ValueError("online=True requires alignment=True (or ea=True)")
     if alignment_mode not in ("euclidean", "channel_norm"):
         raise ValueError(f"Unknown alignment mode: {alignment_mode}")
     if not runs or len(set(runs)) != len(runs) or not set(runs) <= set(available):
@@ -103,6 +101,7 @@ def get_data(
         runs = {"train": [1, 2], "test": [3, 4, 5, 6]} if name == "Dreyer2023" else None
         strategy = "stratified_chronological"
     if strategy not in ("stratified_chronological", "chronological"):
+
         raise ValueError(f"Unknown split strategy: {strategy}")
     if runs is not None:
         if set(runs) != {"train", "test"}:
