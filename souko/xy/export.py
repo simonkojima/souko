@@ -7,7 +7,6 @@ from .utils import get_proc_name, expand_variables
 
 
 def preprocess_raw(raw, l_freq, h_freq, f_order, phase, picks, n_jobs=None):
-    raw.load_data()
     raw.pick(picks=picks)
     raw.filter(
         l_freq=l_freq,
@@ -125,22 +124,24 @@ def export_data(
                     save_base
                     / f"sub-{subject}"
                     / f"ses-{session_idx + 1}"
-                    #/ get_proc_name(
+                    # / get_proc_name(
                     #    resample=resample,
                     #    tmin=tmin,
                     #    tmax=tmax,
                     #    l_freq=l_freq,
                     #    h_freq=h_freq,
-                    #)
+                    # )
                 )
 
                 save_base_session.mkdir(parents=True, exist_ok=True)
+                run_raw.load_data()
 
                 print(
                     f"Exporting data for subject {subject}, session {session_idx + 1}, run {run_idx + 1}"
                 )
+
                 run_raw = preprocess_raw(
-                    run_raw.copy(),
+                    run_raw,
                     l_freq=l_freq,
                     h_freq=h_freq,
                     f_order=f_order,
