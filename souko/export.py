@@ -46,7 +46,6 @@ def export_data(
     save_base=None,
     alignment=None,
     kwargs_alignment={},
-    online=True,
     name="${NAME}",
     n_jobs=None,
 ):
@@ -59,13 +58,6 @@ def export_data(
 
     if cache_config is None:
         cache_config = {"use": True}
-    if alignment is not None:
-        if alignment == "EA":
-            from transfer_bci.euclidean import euclidean_alignment
-        elif alignment == "CN":
-            from transfer_bci.euclidean import channel_normalization
-    else:
-        func_alignment = None
 
     dataset_name = dataset.__class__.__name__
 
@@ -98,6 +90,7 @@ def export_data(
             n_samples = []
             session_event_id = {}
             for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
+                run_manifest.append(run_name)
 
                 save_base_session = (
                     save_base / f"sub-{subject}" / f"ses-{session_idx + 1}"
@@ -105,10 +98,6 @@ def export_data(
 
                 save_base_session.mkdir(parents=True, exist_ok=True)
                 run_raw.load_data()
-
-                print(
-                    f"Exporting data for subject {subject}, session {session_idx + 1}, run {run_idx + 1}"
-                )
 
                 run_raw = preprocess_raw(
                     run_raw,
@@ -149,6 +138,7 @@ def export_data(
                     epochs = epochs.resample(resample, n_jobs=n_jobs)
 
                 epochs = epochs.crop(tmin=tmin, tmax=tmax)
+                times = epochs.times
 
                 X = epochs.get_data()
                 y = epochs.events[:, 2]
@@ -161,8 +151,10 @@ def export_data(
             X = np.concatenate(X_ses, axis=0)
             y = np.concatenate(y_ses, axis=0)
 
-            if func_alignment is not None:
-                X = func_alignment(X, **kwargs_alignment)
+            print(f"Exporting data for subject {subject}, session {session_idx + 1}")
+
+            if alignment is not None:
+                X = alignment(X, **kwargs_alignment)
 
             np.save(
                 save_base_session / f"sub-{subject}_ses-{session_idx + 1}_X.npy",
@@ -177,13 +169,16 @@ def export_data(
             if isinstance(times, np.ndarray):
                 times = times.tolist()
 
+            if alignment is not None:
+                alignment_name = f"{alignment.__module__}.{alignment.__qualname__}"
+            else:
+                alignment_name = None
+
             meta_data = {
-                "ch_names": epochs.ch_names,
                 "sfreq": epochs.info["sfreq"],
                 "resample": resample,
                 "highpass": epochs.info["highpass"],
                 "lowpass": epochs.info["lowpass"],
-                "times": times,
                 "event_id": event_id,
                 "dataset": dataset_name,
                 "sfreq": float(epochs.info["sfreq"]),
@@ -193,6 +188,8 @@ def export_data(
                 "runs": run_manifest,
                 "n_sampels_per_run": n_samples,
                 "event_id": session_event_id,
+                "alignment": alignment_name,
+                "kwargs_alignment": kwargs_alignment,
                 "preprocessing": {
                     "resample": resample,
                     "tmin": tmin,
@@ -200,12 +197,14 @@ def export_data(
                     "l_freq": l_freq,
                     "h_freq": h_freq,
                 },
+                "ch_names": epochs.ch_names,
+                "times": times,
             }
 
             with open(
                 save_base_session / f"sub-{subject}_ses-{session_idx+1}_meta.json", "w"
             ) as f:
-                json.dump(meta_data, f)
+                json.dump(meta_data, f, indent=4)
 
 
 if __name__ == "__main__":
@@ -222,4 +221,5 @@ if __name__ == "__main__":
         tmin=0.5,
         tmax=5,
         event_id={"left_hand": 0, "right_hand": 1},
+        name="${NAME}_test",
     )

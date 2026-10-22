@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 import numpy as np
 from souko.split import split_indices, split_data
-from souko.xy.load import get_data, get_data_cross, subject_list, sessions_list
+from souko.load import get_data, get_data_cross, subject_list, sessions_list
 
 
 class SplitTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class SplitTests(unittest.TestCase):
         np.testing.assert_array_equal(test, [2, 5, 6, 7])
 
     def test_validation(self):
-        for ratios in ((0, 1), (-1, 2), (0.3, 0.3), (float('nan'), 1)):
+        for ratios in ((0, 1), (-1, 2), (0.3, 0.3), (float("nan"), 1)):
             with self.assertRaises(ValueError):
                 split_indices([0, 1], ratios)
         with self.assertRaises(ValueError):
@@ -37,62 +37,76 @@ class LoaderTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.base = Path(self.temp.name)
-        self.path = self.base / 'Custom' / 'sub-3' / 'ses-1'
+        self.path = self.base / "Custom" / "sub-3" / "ses-1"
         self.path.mkdir(parents=True)
-        self.prefix = 'sub-3_ses-1'
+        self.prefix = "sub-3_ses-1"
         self.X = np.arange(24).reshape(12, 2, 1)
         self.y = np.tile([2, 7, 9], 4)
         for run, sl in ((1, slice(0, 6)), (2, slice(6, 12))):
-            np.save(self.path / f'{self.prefix}_run-{run}_X.npy', self.X[sl])
-            np.save(self.path / f'{self.prefix}_run-{run}_y.npy', self.y[sl])
-        np.save(self.path / f'{self.prefix}_X_ea.npy', self.X + 100)
-        np.save(self.path / f'{self.prefix}_X_ea_online.npy', self.X + 200)
-        np.save(self.path / f'{self.prefix}_X_cn.npy', self.X + 300)
-        np.save(self.path / f'{self.prefix}_X_cn_online.npy', self.X + 400)
-        (self.path / f'{self.prefix}_meta.json').write_text(json.dumps({'session_name': 'original'}))
+            np.save(self.path / f"{self.prefix}_run-{run}_X.npy", self.X[sl])
+            np.save(self.path / f"{self.prefix}_run-{run}_y.npy", self.y[sl])
+        np.save(self.path / f"{self.prefix}_X_ea.npy", self.X + 100)
+        np.save(self.path / f"{self.prefix}_X_ea_online.npy", self.X + 200)
+        np.save(self.path / f"{self.prefix}_X_cn.npy", self.X + 300)
+        np.save(self.path / f"{self.prefix}_X_cn_online.npy", self.X + 400)
+        (self.path / f"{self.prefix}_meta.json").write_text(
+            json.dumps({"session_name": "original"})
+        )
 
     def tearDown(self):
         self.temp.cleanup()
 
     def load(self, **kwargs):
-        return get_data('Custom', subject=3, base=self.base, **kwargs)
+        return get_data("Custom", subject=3, base=self.base, **kwargs)
 
     def test_discovery_and_default_split(self):
-        self.assertEqual(subject_list('Custom', self.base), [3])
-        self.assertEqual(sessions_list('Custom', 3, self.base), [1])
-        data = self.load(train_test_split=.5)
-        np.testing.assert_array_equal(data['train']['eeg'], self.X[:6])
-        np.testing.assert_array_equal(data['test']['eeg'], self.X[6:])
+        self.assertEqual(subject_list("Custom", self.base), [3])
+        self.assertEqual(sessions_list("Custom", 3, self.base), [1])
+        data = self.load(train_test_split=0.5)
+        np.testing.assert_array_equal(data["train"]["eeg"], self.X[:6])
+        np.testing.assert_array_equal(data["test"]["eeg"], self.X[6:])
 
     def test_validation_never_uses_test(self):
-        data = self.load(runs={'train': [1], 'test': [2]}, valid=True, train_valid_split=.5)
-        np.testing.assert_array_equal(data['train']['eeg'], self.X[:3])
-        np.testing.assert_array_equal(data['valid']['eeg'], self.X[3:6])
-        np.testing.assert_array_equal(data['test']['eeg'], self.X[6:])
+        data = self.load(
+            runs={"train": [1], "test": [2]}, valid=True, train_valid_split=0.5
+        )
+        np.testing.assert_array_equal(data["train"]["eeg"], self.X[:3])
+        np.testing.assert_array_equal(data["valid"]["eeg"], self.X[3:6])
+        np.testing.assert_array_equal(data["test"]["eeg"], self.X[6:])
 
     def test_cached_ea_run_selection(self):
         for online, offset in ((False, 100), (True, 200)):
-            data = self.load(runs={'train': [2], 'test': [1]}, ea=True, online=online)
-            np.testing.assert_array_equal(data['train']['eeg'], self.X[6:] + offset)
-            np.testing.assert_array_equal(data['test']['eeg'], self.X[:6] + offset)
+            data = self.load(runs={"train": [2], "test": [1]}, ea=True, online=online)
+            np.testing.assert_array_equal(data["train"]["eeg"], self.X[6:] + offset)
+            np.testing.assert_array_equal(data["test"]["eeg"], self.X[:6] + offset)
         with self.assertRaises(ValueError):
             self.load(online=True)
         with self.assertRaises(ValueError):
-            self.load(runs={'train': [1], 'test': [1]})
+            self.load(runs={"train": [1], "test": [1]})
 
     def test_channel_normalization_cache(self):
         for online, offset in ((False, 300), (True, 400)):
-            data = self.load(alignment=True, alignment_mode="channel_norm", online=online)
-            np.testing.assert_array_equal(data['train']['eeg'], self.X[:9] + offset)
-            cross = get_data_cross('Custom', subject=3, base=self.base,
-                                   alignment=True, alignment_mode="channel_norm", online=online)
-            np.testing.assert_array_equal(cross['eeg'], self.X + offset)
+            data = self.load(
+                alignment=True, alignment_mode="channel_norm", online=online
+            )
+            np.testing.assert_array_equal(data["train"]["eeg"], self.X[:9] + offset)
+            cross = get_data_cross(
+                "Custom",
+                subject=3,
+                base=self.base,
+                alignment=True,
+                alignment_mode="channel_norm",
+                online=online,
+            )
+            np.testing.assert_array_equal(cross["eeg"], self.X + offset)
 
     def test_cross_metadata(self):
-        data, info = get_data_cross('Custom', subject=3, base=self.base, return_info=True)
-        np.testing.assert_array_equal(data['eeg'], self.X)
-        self.assertEqual(info['sessions']['1']['session_name'], 'original')
+        data, info = get_data_cross(
+            "Custom", subject=3, base=self.base, return_info=True
+        )
+        np.testing.assert_array_equal(data["eeg"], self.X)
+        self.assertEqual(info["sessions"]["1"]["session_name"], "original")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
