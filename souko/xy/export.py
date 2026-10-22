@@ -31,32 +31,6 @@ def _save_data(X, y, save_base, subject, session_num, run_num):
     )
 
 
-def export_meta_data(
-    save_base,
-    subject,
-    session_num,
-    raw,
-    resample,
-    times,
-    event_id,
-):
-    if isinstance(times, np.ndarray):
-        times = times.tolist()
-
-    meta_data = {
-        "ch_names": raw.ch_names,
-        "sfreq": raw.info["sfreq"],
-        "resample": resample,
-        "highpass": raw.info["highpass"],
-        "lowpass": raw.info["lowpass"],
-        "times": times,
-        "event_id": event_id,
-    }
-
-    with open(save_base / f"sub-{subject}_ses-{session_num}_meta.json", "w") as f:
-        json.dump(meta_data, f)
-
-
 def export_data(
     dataset,
     cache_config=None,
@@ -70,8 +44,8 @@ def export_data(
     tmax=None,
     event_id="auto",
     save_base=None,
-    ea=True,
-    cn=True,
+    alignment=None,
+    kwargs_alignment={},
     online=True,
     name="${NAME}",
     n_jobs=None,
@@ -85,10 +59,14 @@ def export_data(
 
     if cache_config is None:
         cache_config = {"use": True}
-    if ea:
-        from transfer_bci.euclidean import euclidean_alignment
-    if cn:
-        from transfer_bci.euclidean import channel_normalization
+    if alignment is not None:
+        if alignment == "EA":
+            from transfer_bci.euclidean import euclidean_alignment
+        elif alignment == "CN":
+            from transfer_bci.euclidean import channel_normalization
+    else:
+        func_alignment = None
+
     dataset_name = dataset.__class__.__name__
 
     if name == "":
@@ -117,20 +95,12 @@ def export_data(
                 raise ValueError(f"Empty session: {session_name}")
             X_ses, y_ses = [], []
             run_manifest = []
+            n_samples = []
             session_event_id = {}
             for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
 
                 save_base_session = (
-                    save_base
-                    / f"sub-{subject}"
-                    / f"ses-{session_idx + 1}"
-                    # / get_proc_name(
-                    #    resample=resample,
-                    #    tmin=tmin,
-                    #    tmax=tmax,
-                    #    l_freq=l_freq,
-                    #    h_freq=h_freq,
-                    # )
+                    save_base / f"sub-{subject}" / f"ses-{session_idx + 1}"
                 )
 
                 save_base_session.mkdir(parents=True, exist_ok=True)
@@ -186,37 +156,13 @@ def export_data(
                 X_ses.append(X)
                 y_ses.append(y)
 
-                times = epochs.times
-                np.save(
-                    save_base_session
-                    / f"sub-{subject}_ses-{session_idx + 1}_run-{run_idx + 1}_samples.npy",
-                    epochs.events[:, 0],
-                )
-                run_manifest.append(
-                    {"id": run_idx + 1, "name": str(run_name), "n_trials": len(y)}
-                )
-
-                _save_data(
-                    X=X,
-                    y=y,
-                    save_base=save_base_session,
-                    subject=subject,
-                    session_num=session_idx + 1,
-                    run_num=run_idx + 1,
-                )
-
-                export_meta_data(
-                    save_base=save_base_session,
-                    subject=subject,
-                    session_num=session_idx + 1,
-                    raw=run_raw,
-                    resample=resample,
-                    times=times,
-                    event_id=run_event_id,
-                )
+                n_samples.append(y.size)
 
             X = np.concatenate(X_ses, axis=0)
             y = np.concatenate(y_ses, axis=0)
+
+            if func_alignment is not None:
+                X = func_alignment(X, **kwargs_alignment)
 
             np.save(
                 save_base_session / f"sub-{subject}_ses-{session_idx + 1}_X.npy",
@@ -228,68 +174,38 @@ def export_data(
                 y,
             )
 
-            for suffix, enabled, is_online in (
-                ("ea", ea, False),
-                ("ea_online", ea and online, True),
-            ):
-                filename = (
-                    save_base_session
-                    / f"sub-{subject}_ses-{session_idx + 1}_X_{suffix}.npy"
-                )
-                if enabled:
-                    aligned = (
-                        euclidean_alignment(X, online=True)
-                        if is_online
-                        else euclidean_alignment(X)
-                    )
-                    np.save(filename, aligned)
-                else:
-                    filename.unlink(missing_ok=True)
+            if isinstance(times, np.ndarray):
+                times = times.tolist()
 
-            for suffix, enabled, is_online in (
-                ("cn", cn, False),
-                ("cn_online", cn and online, True),
-            ):
-                filename = (
-                    save_base_session
-                    / f"sub-{subject}_ses-{session_idx + 1}_X_{suffix}.npy"
-                )
-                if enabled:
-                    aligned = (
-                        channel_normalization(X, online=True)
-                        if is_online
-                        else channel_normalization(X)
-                    )
-                    np.save(filename, aligned)
-                else:
-                    filename.unlink(missing_ok=True)
+            meta_data = {
+                "ch_names": epochs.ch_names,
+                "sfreq": epochs.info["sfreq"],
+                "resample": resample,
+                "highpass": epochs.info["highpass"],
+                "lowpass": epochs.info["lowpass"],
+                "times": times,
+                "event_id": event_id,
+                "dataset": dataset_name,
+                "sfreq": float(epochs.info["sfreq"]),
+                "subject": subject,
+                "session": session_idx + 1,
+                "session_name": str(session_name),
+                "runs": run_manifest,
+                "n_sampels_per_run": n_samples,
+                "event_id": session_event_id,
+                "preprocessing": {
+                    "resample": resample,
+                    "tmin": tmin,
+                    "tmax": tmax,
+                    "l_freq": l_freq,
+                    "h_freq": h_freq,
+                },
+            }
 
-            metadata_path = (
-                save_base_session / f"sub-{subject}_ses-{session_idx + 1}_meta.json"
-            )
-            with open(metadata_path) as stream:
-                metadata = json.load(stream)
-            metadata.update(
-                {
-                    "schema_version": 1,
-                    "dataset": dataset_name,
-                    "sfreq": float(epochs.info["sfreq"]),
-                    "subject": subject,
-                    "session": session_idx + 1,
-                    "session_name": str(session_name),
-                    "runs": run_manifest,
-                    "event_id": session_event_id,
-                    "preprocessing": {
-                        "resample": resample,
-                        "tmin": tmin,
-                        "tmax": tmax,
-                        "l_freq": l_freq,
-                        "h_freq": h_freq,
-                    },
-                }
-            )
-            with open(metadata_path, "w") as stream:
-                json.dump(metadata, stream)
+            with open(
+                save_base_session / f"sub-{subject}_ses-{session_idx+1}_meta.json", "w"
+            ) as f:
+                json.dump(meta_data, f)
 
 
 if __name__ == "__main__":
