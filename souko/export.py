@@ -2,8 +2,10 @@ import mne
 import json
 from pathlib import Path
 import numpy as np
+from mne_bids import get_entity_vals
 
-from .utils import get_proc_name, expand_variables
+from .utils import expand_variables
+from .load import read_data
 
 
 def preprocess_raw(raw, l_freq, h_freq, f_order, phase, picks, n_jobs=None):
@@ -48,13 +50,9 @@ def export_data(
     kwargs_alignment={},
     name="${NAME}",
     n_jobs=None,
+    name_cache=None,
+    mmap_mode=False,
 ):
-    """Export runs plus cached session EA representations.
-
-    save_base is the dataset root (default ~/datasets). EA is fitted across
-    the complete session; online EA is delegated to transfer_bci. Neither
-    cached representation is refitted when loaders split the trials.
-    """
 
     if cache_config is None:
         cache_config = {"use": True}
@@ -67,89 +65,109 @@ def export_data(
     name_dir = expand_variables(name, {"NAME": dataset_name})
 
     if save_base is None:
-        save_base = Path.home() / "datasets" / name_dir
+        save_base = Path.home() / "datasets"
     else:
-        save_base = Path(save_base) / name_dir
+        save_base = Path(save_base)
 
     if tmin is None:
         tmin = dataset.interval[0]
     if tmax is None:
         tmax = dataset.interval[1]
 
-    requested_event_id = event_id
     for subject in dataset.subject_list:
-        data = dataset.get_data(
-            subjects=[subject],
-            cache_config=cache_config,
-        )[subject]
-        for session_idx, (session_name, session_data) in enumerate(data.items()):
-            if not session_data:
-                raise ValueError(f"Empty session: {session_name}")
-            X_ses, y_ses = [], []
-            run_manifest = []
-            n_samples = []
-            session_event_id = {}
-            for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
-                run_manifest.append(run_name)
+        if name_cache is None:
+            data = dataset.get_data(
+                subjects=[subject],
+                cache_config=cache_config,
+            )[subject]
+            sessions = list(range(1, len(data) + 1))
+        else:
+            sessions = get_entity_vals(
+                save_base / name_cache / f"sub-{subject}", "session"
+            )
 
-                save_base_session = (
-                    save_base / f"sub-{subject}" / f"ses-{session_idx + 1}"
+        for session_idx, (session_name) in enumerate(sessions):
+
+            save_base_session = (
+                save_base / name_dir / f"sub-{subject}" / f"ses-{session_idx + 1}"
+            )
+
+            save_base_session.mkdir(parents=True, exist_ok=True)
+
+            if name_cache is None:
+                session_data = list(data.values())[session_idx]
+                if not session_data:
+                    raise ValueError(f"Empty session: {session_name}")
+                X_ses, y_ses = [], []
+                run_manifest = []
+                n_samples = []
+                for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
+                    run_manifest.append(run_name)
+
+                    run_raw.load_data()
+
+                    run_raw = preprocess_raw(
+                        run_raw,
+                        l_freq=l_freq,
+                        h_freq=h_freq,
+                        f_order=f_order,
+                        phase=phase,
+                        picks=picks,
+                        n_jobs=n_jobs,
+                    )
+
+                    events, run_event_id = mne.events_from_annotations(
+                        raw=run_raw,
+                        event_id=event_id,
+                    )
+
+                    epochs = mne.Epochs(
+                        run_raw,
+                        events=events,
+                        event_id=run_event_id,
+                        tmin=tmin,
+                        tmax=tmax,
+                        baseline=None,
+                    )
+
+                    if resample is not None:
+                        epochs.load_data()
+                        epochs = epochs.resample(resample, n_jobs=n_jobs)
+
+                    epochs = epochs.crop(tmin=tmin, tmax=tmax)
+                    times = epochs.times
+
+                    X = epochs.get_data()
+                    y = epochs.events[:, 2]
+
+                    X_ses.append(X)
+                    y_ses.append(y)
+
+                    n_samples.append(y.size)
+
+                X = np.concatenate(X_ses, axis=0)
+                y = np.concatenate(y_ses, axis=0)
+
+                sfreq = epochs.info["sfreq"]
+                highpass = epochs.info["highpass"]
+                lowpass = epochs.info["lowpass"]
+                if isinstance(times, np.ndarray):
+                    times = times.tolist()
+                runs = run_manifest
+                ch_names = epochs.ch_names
+            else:
+
+                X, y, meta = read_data(
+                    save_base, name_cache, subject, session_idx + 1, mmap_mode=mmap_mode
                 )
 
-                save_base_session.mkdir(parents=True, exist_ok=True)
-                run_raw.load_data()
-
-                run_raw = preprocess_raw(
-                    run_raw,
-                    l_freq=l_freq,
-                    h_freq=h_freq,
-                    f_order=f_order,
-                    phase=phase,
-                    picks=picks,
-                    n_jobs=n_jobs,
-                )
-
-                events, run_event_id = mne.events_from_annotations(
-                    raw=run_raw,
-                    event_id=requested_event_id,
-                )
-
-                for label, code in run_event_id.items():
-                    if label in session_event_id and session_event_id[label] != code:
-                        raise ValueError(f"Inconsistent event code for {label}")
-                    if any(
-                        other != label and value == code
-                        for other, value in session_event_id.items()
-                    ):
-                        raise ValueError(f"Event code {code} has inconsistent labels")
-                    session_event_id[label] = code
-
-                epochs = mne.Epochs(
-                    run_raw,
-                    events=events,
-                    event_id=run_event_id,
-                    tmin=tmin,
-                    tmax=tmax,
-                    baseline=None,
-                )
-
-                if resample is not None:
-                    epochs.load_data()
-                    epochs = epochs.resample(resample, n_jobs=n_jobs)
-
-                epochs = epochs.crop(tmin=tmin, tmax=tmax)
-                times = epochs.times
-
-                X = epochs.get_data()
-                y = epochs.events[:, 2]
-
-                X_ses.append(X)
-                y_ses.append(y)
-
-                n_samples.append(y.size)
-
-            X = np.concatenate(X_ses, axis=0)
-            y = np.concatenate(y_ses, axis=0)
+                sfreq = meta["sfreq"]
+                highpass = meta["highpass"]
+                lowpass = meta["lowpass"]
+                times = meta["times"]
+                runs = meta["runs"]
+                n_samples = meta["n_samples_per_run"]
+                ch_names = meta["ch_names"]
 
             print(f"Exporting data for subject {subject}, session {session_idx + 1}")
 
@@ -166,28 +184,23 @@ def export_data(
                 y,
             )
 
-            if isinstance(times, np.ndarray):
-                times = times.tolist()
-
             if alignment is not None:
                 alignment_name = f"{alignment.__module__}.{alignment.__qualname__}"
             else:
                 alignment_name = None
 
             meta_data = {
-                "sfreq": epochs.info["sfreq"],
+                "sfreq": sfreq,
                 "resample": resample,
-                "highpass": epochs.info["highpass"],
-                "lowpass": epochs.info["lowpass"],
+                "highpass": highpass,
+                "lowpass": lowpass,
                 "event_id": event_id,
                 "dataset": dataset_name,
-                "sfreq": float(epochs.info["sfreq"]),
                 "subject": subject,
                 "session": session_idx + 1,
                 "session_name": str(session_name),
-                "runs": run_manifest,
-                "n_sampels_per_run": n_samples,
-                "event_id": session_event_id,
+                "runs": runs,
+                "n_samples_per_run": n_samples,
                 "alignment": alignment_name,
                 "kwargs_alignment": kwargs_alignment,
                 "preprocessing": {
@@ -197,7 +210,7 @@ def export_data(
                     "l_freq": l_freq,
                     "h_freq": h_freq,
                 },
-                "ch_names": epochs.ch_names,
+                "ch_names": ch_names,
                 "times": times,
             }
 

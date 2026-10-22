@@ -50,7 +50,7 @@ def get_data(
             result[key] = {field: value[index] for field, value in train.items()}
 
 
-def read_data(base, name, subject, session):
+def read_data(base, name, subject, session, mmap_mode):
 
     fname = (
         base
@@ -59,7 +59,7 @@ def read_data(base, name, subject, session):
         / f"ses-{session}"
         / f"sub-{subject}_ses-{session}_X.npy"
     )
-    X = np.load(fname)
+    X = np.load(fname, mmap_mode=mmap_mode)
 
     fname = (
         base
@@ -68,7 +68,7 @@ def read_data(base, name, subject, session):
         / f"ses-{session}"
         / f"sub-{subject}_ses-{session}_y.npy"
     )
-    y = np.load(fname)
+    y = np.load(fname, mmap_mode=mmap_mode)
 
     fname = (
         base
@@ -89,6 +89,7 @@ def get_data_cross(
     sessions=None,
     base=None,
     return_meta=False,
+    mmap_mode=None,
 ):
 
     if base is None:
@@ -100,7 +101,7 @@ def get_data_cross(
     X_list, y_list = [], []
     metadata = {}
     for session in sessions:
-        X, y, meta = read_data(base, name, subject, session)
+        X, y, meta = read_data(base, name, subject, session, mmap_mode=mmap_mode)
         metadata[str(session)] = meta
         X_list.append(X)
         y_list.append(y)
