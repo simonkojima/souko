@@ -94,9 +94,17 @@ def get_data_cross(
 
     if base is None:
         base = Path.home() / "datasets"
+    else:
+        base = Path(base)
+
+    if not (base / name / f"sub-{subject}").exists():
+        raise ValueError(f"{base / name / f'sub-{subject}'} does not exist")
 
     if sessions is None:
         sessions = get_entity_vals(base / name / f"sub-{subject}", entity_key="session")
+
+    if len(sessions) == 0:
+        raise ValueError(f"{base / name / f'sub-{subject}'} has no sessions")
 
     X_list, y_list = [], []
     metadata = {}
