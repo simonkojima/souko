@@ -8,16 +8,9 @@ from .utils import expand_variables
 from .load import read_data
 
 
-def preprocess_raw(raw, l_freq, h_freq, f_order, phase, picks, n_jobs=None):
+def preprocess_raw(raw, picks, l_freq, h_freq, kwargs_filter):
     raw.pick(picks=picks)
-    raw.filter(
-        l_freq=l_freq,
-        h_freq=h_freq,
-        method="iir",
-        phase=phase,
-        iir_params={"ftype": "butter", "btype": "bandpass", "order": f_order},
-        n_jobs=n_jobs,
-    )
+    raw.filter(l_freq=l_freq, h_freq=h_freq, **kwargs_filter)
     return raw
 
 
@@ -40,8 +33,7 @@ def export_data(
     picks="eeg",
     l_freq=7,
     h_freq=30,
-    f_order=4,
-    phase="zero",
+    kwargs_filter={},
     tmin=None,
     tmax=None,
     event_id="auto",
@@ -110,10 +102,8 @@ def export_data(
                         run_raw,
                         l_freq=l_freq,
                         h_freq=h_freq,
-                        f_order=f_order,
-                        phase=phase,
                         picks=picks,
-                        n_jobs=n_jobs,
+                        kwargs_filter=kwargs_filter,
                     )
 
                     events, run_event_id = mne.events_from_annotations(
@@ -209,6 +199,7 @@ def export_data(
                     "tmax": tmax,
                     "l_freq": l_freq,
                     "h_freq": h_freq,
+                    "kwargs_filter": kwargs_filter,
                 },
                 "ch_names": ch_names,
                 "times": times,
