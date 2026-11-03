@@ -201,6 +201,9 @@ def export_data(
                     "h_freq": h_freq,
                     "kwargs_filter": kwargs_filter,
                 },
+                "name": name,
+                "name_cache": name_cache,
+                "mmap_mode": mmap_mode,
                 "ch_names": ch_names,
                 "times": times,
             }
