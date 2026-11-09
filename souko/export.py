@@ -96,7 +96,6 @@ def export_data(
                 run_manifest = []
                 n_samples = []
                 for run_idx, (run_name, run_raw) in enumerate(session_data.items()):
-                    run_manifest.append(run_name)
 
                     run_raw.load_data()
 
@@ -128,6 +127,7 @@ def export_data(
                                 f"event_not_found: {event_not_found} is unknown"
                             )
 
+                    run_manifest.append(run_name)
                     events, run_event_id = mne.events_from_annotations(
                         raw=run_raw,
                         event_id=event_id,
@@ -141,8 +141,6 @@ def export_data(
                         tmax=tmax,
                         baseline=None,
                     )
-
-                    print(epochs)
 
                     if resample is not None:
                         epochs.load_data()
