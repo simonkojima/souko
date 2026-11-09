@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import numpy as np
 from mne_bids import get_entity_vals
+import warnings
 
 from .utils import expand_variables
 from .load import read_data
@@ -44,6 +45,7 @@ def export_data(
     n_jobs=None,
     name_cache=None,
     mmap_mode=False,
+    event_not_found="warning",
 ):
 
     if cache_config is None:
@@ -106,6 +108,26 @@ def export_data(
                         kwargs_filter=kwargs_filter,
                     )
 
+                    _events, _event_id = mne.events_from_annotations(run_raw)
+
+                    event_id_raw = list(_event_id.keys())
+
+                    if len(set(event_id_raw) & set(event_id)) != len(event_id):
+                        if event_not_found == "warning":
+                            warnings.warn(
+                                f"Requested events {event_id} is not contained in this run {_event_id}",
+                                RuntimeWarning,
+                            )
+                            continue
+                        elif event_not_found == "raise":
+                            raise RuntimeError(
+                                f"Requested events {event_id} is not contained in this run {_event_id}",
+                            )
+                        else:
+                            raise ValueError(
+                                f"event_not_found: {event_not_found} is unknown"
+                            )
+
                     events, run_event_id = mne.events_from_annotations(
                         raw=run_raw,
                         event_id=event_id,
@@ -119,6 +141,8 @@ def export_data(
                         tmax=tmax,
                         baseline=None,
                     )
+
+                    print(epochs)
 
                     if resample is not None:
                         epochs.load_data()
