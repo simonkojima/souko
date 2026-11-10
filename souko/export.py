@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from mne_bids import get_entity_vals
 import warnings
+from pprint import pprint
 
 from .utils import expand_variables
 from .load import read_data
@@ -29,6 +30,9 @@ def pick_channels(X, meta, picks):
 
     ch_names = meta["ch_names"]
 
+    if len(set(ch_names) & set(picks)) != len(set(picks)):
+        raise ValueError(f"{picks} not in {ch_names}")
+
     idx = [ch_names.index(pick) for pick in picks]
     new_ch_names = [ch_names[i] for i in idx]
 
@@ -44,6 +48,14 @@ def crop(X, meta, tmin, tmax):
 
     idx_min = np.argmin(np.abs(times - tmin))
     idx_max = np.argmin(np.abs(times - tmax))
+
+    sfreq = meta["sfreq"]
+
+    if abs(times[idx_min] - tmin) > 1 / sfreq:
+        raise ValueError(f"tmin={tmin} is too far from nearest time={times[idx_min]}")
+
+    if abs(times[idx_max] - tmax) > 1 / sfreq:
+        raise ValueError(f"tmax={tmax} is too far from nearest time={times[idx_max]}")
 
     X = X[:, :, idx_min : idx_max + 1]
     meta["times"] = times[idx_min : idx_max + 1].tolist()
@@ -220,8 +232,22 @@ def export_data(
                     mmap_mode=mmap_mode,
                 )
 
-                # TODO
-                # check if all the parameters are identical
+                preprocessing_dict = {
+                    "resample": resample,
+                    "l_freq": l_freq,
+                    "h_freq": h_freq,
+                    "kwargs_filter": kwargs_filter,
+                }
+
+                if meta["dataset"] != dataset_name:
+                    raise ValueError(
+                        f"dataset name for cache {meta['dataset']} is not identical to {dataset_name}"
+                    )
+
+                if meta["preprocessing"] != preprocessing_dict:
+                    raise ValueError(
+                        f"preprocessing parameters are not compatible: {meta['preprocessing']}"
+                    )
 
                 X, meta = pick_channels(X, meta, picks=picks)
                 X, meta = crop(X, meta, tmin, tmax)
