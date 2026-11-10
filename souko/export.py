@@ -239,14 +239,18 @@ def export_data(
                     "kwargs_filter": kwargs_filter,
                 }
 
+                meta_preprocessing_dict = meta["preprocessing"].copy()
+                meta_preprocessing_dict.pop("tmin")
+                meta_preprocessing_dict.pop("tmax")
+
                 if meta["dataset"] != dataset_name:
                     raise ValueError(
                         f"dataset name for cache {meta['dataset']} is not identical to {dataset_name}"
                     )
 
-                if meta["preprocessing"] != preprocessing_dict:
+                if meta_preprocessing_dict != preprocessing_dict:
                     raise ValueError(
-                        f"preprocessing parameters are not compatible: {meta['preprocessing']}"
+                        f"preprocessing parameters are not compatible: {meta_preprocessing_dict}"
                     )
 
                 X, meta = pick_channels(X, meta, picks=picks)

@@ -14,6 +14,13 @@ if __name__ == "__main__":
         resample=128,
         tmin=0.5,
         tmax=5,
+        l_freq=0.5,
+        h_freq=40,
+        kwargs_filter={
+            "method": "iir",
+            "phase": "zero",
+            "iir_params": {"ftype": "butter", "order": 4, "btype": "bandpass"},
+        },
         event_id={"left_hand": 0, "right_hand": 1},
         name="${NAME}_test",
         name_cache="${NAME}",
