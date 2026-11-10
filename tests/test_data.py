@@ -12,8 +12,8 @@ if __name__ == "__main__":
     souko.export_data(
         dataset,
         resample=128,
-        tmin=0.5,
-        tmax=5,
+        tmin=1,
+        tmax=1.2,
         l_freq=0.5,
         h_freq=40,
         kwargs_filter={

@@ -5,6 +5,7 @@ import numpy as np
 from mne_bids import get_entity_vals
 import warnings
 from pprint import pprint
+from copy import deepcopy
 
 from .utils import expand_variables
 from .load import read_data
@@ -239,7 +240,7 @@ def export_data(
                     "kwargs_filter": kwargs_filter,
                 }
 
-                meta_preprocessing_dict = meta["preprocessing"].copy()
+                meta_preprocessing_dict = deepcopy(meta["preprocessing"])
                 meta_preprocessing_dict.pop("tmin")
                 meta_preprocessing_dict.pop("tmax")
 
