@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 import numpy as np
-from souko.split import split_indices
+from .split import split_indices
 from mne_bids import get_entity_vals
 
 

@@ -15,6 +15,42 @@ def preprocess_raw(raw, picks, l_freq, h_freq, kwargs_filter):
     return raw
 
 
+def pick_channels(X, meta, picks):
+
+    if isinstance(picks, list) and len(picks) == 1:
+        picks = picks[0]
+
+    if picks == "eeg":
+        warnings.warn(
+            f"When using cache (name_cache is not None), picks='eeg' is ignored",
+        )
+
+        return X
+
+    ch_names = meta["ch_names"]
+
+    idx = [ch_names.index(pick) for pick in picks]
+    new_ch_names = [ch_names[i] for i in idx]
+
+    new_X = X[:, idx, :]
+    meta["ch_names"] = new_ch_names
+
+    return new_X, meta
+
+
+def crop(X, meta, tmin, tmax):
+
+    times = np.asarray(meta["times"])
+
+    idx_min = np.argmin(np.abs(times - tmin))
+    idx_max = np.argmin(np.abs(times - tmax))
+
+    X = X[:, :, idx_min : idx_max + 1]
+    meta["times"] = times[idx_min : idx_max + 1].tolist()
+
+    return X, meta
+
+
 def _save_data(X, y, save_base, subject, session_num, run_num):
     np.save(
         save_base / f"sub-{subject}_ses-{session_num}_run-{run_num}_X.npy",
@@ -44,6 +80,7 @@ def export_data(
     name="${NAME}",
     n_jobs=None,
     name_cache=None,
+    cache_base="save",
     mmap_mode=False,
     event_not_found="warning",
 ):
@@ -58,10 +95,16 @@ def export_data(
 
     name_dir = expand_variables(name, {"NAME": dataset_name})
 
+    if name_cache is not None:
+        name_cache = expand_variables(name_cache, {"NAME": dataset_name})
+
     if save_base is None:
         save_base = Path.home() / "datasets"
     else:
         save_base = Path(save_base)
+
+    if cache_base == "save":
+        cache_base = save_base
 
     if tmin is None:
         tmin = dataset.interval[0]
@@ -77,7 +120,7 @@ def export_data(
             sessions = list(range(1, len(data) + 1))
         else:
             sessions = get_entity_vals(
-                save_base / name_cache / f"sub-{subject}", "session"
+                cache_base / name_cache / f"sub-{subject}", "session"
             )
 
         for session_idx, (session_name) in enumerate(sessions):
@@ -170,8 +213,18 @@ def export_data(
             else:
 
                 X, y, meta = read_data(
-                    save_base, name_cache, subject, session_idx + 1, mmap_mode=mmap_mode
+                    cache_base,
+                    name_cache,
+                    subject,
+                    session_idx + 1,
+                    mmap_mode=mmap_mode,
                 )
+
+                # TODO
+                # check if all the parameters are identical
+
+                X, meta = pick_channels(X, meta, picks=picks)
+                X, meta = crop(X, meta, tmin, tmax)
 
                 sfreq = meta["sfreq"]
                 highpass = meta["highpass"]
@@ -241,6 +294,7 @@ if __name__ == "__main__":
 
     from moabb.datasets import Dreyer2023
     import souko
+    from pathlib import Path
 
     dataset = Dreyer2023()
 
@@ -251,4 +305,7 @@ if __name__ == "__main__":
         tmax=5,
         event_id={"left_hand": 0, "right_hand": 1},
         name="${NAME}_test",
+        name_cache="{NAME}",
+        cache_base=Path.home() / "datasets" / "0.5-40",
+        save_base=Path.home() / "debug" / "souko",
     )
