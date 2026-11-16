@@ -85,7 +85,7 @@ def export_data(
     h_freq=30,
     kwargs_filter={},
     tmin=None,
-    tmax=None,
+    duration=None,
     event_id="auto",
     save_base=None,
     alignment=None,
@@ -121,8 +121,8 @@ def export_data(
 
     if tmin is None:
         tmin = dataset.interval[0]
-    if tmax is None:
-        tmax = dataset.interval[1]
+    if duration is None:
+        duration = dataset.interval[1] - tmin
 
     for subject in dataset.subject_list:
         if name_cache is None:
@@ -194,7 +194,7 @@ def export_data(
                         events=events,
                         event_id=run_event_id,
                         tmin=tmin,
-                        tmax=tmax,
+                        tmax=tmin + duration,
                         baseline=None,
                     )
 
@@ -202,7 +202,7 @@ def export_data(
                         epochs.load_data()
                         epochs = epochs.resample(resample, n_jobs=n_jobs)
 
-                    epochs = epochs.crop(tmin=tmin, tmax=tmax)
+                    epochs = epochs.crop(tmin=tmin, tmax=tmin + duration)
                     times = epochs.times
 
                     X = epochs.get_data()
@@ -255,7 +255,7 @@ def export_data(
                     )
 
                 X, meta = pick_channels(X, meta, picks=picks)
-                X, meta = crop(X, meta, tmin, tmax)
+                X, meta = crop(X, meta, tmin, tmin + duration)
 
                 sfreq = meta["sfreq"]
                 highpass = meta["highpass"]
@@ -299,14 +299,17 @@ def export_data(
                 "n_samples_per_run": n_samples,
                 "alignment": alignment_name,
                 "kwargs_alignment": kwargs_alignment,
+                "dataset_interval": dataset.interval,
                 "preprocessing": {
                     "resample": resample,
                     "tmin": tmin,
-                    "tmax": tmax,
+                    "tmax": duration + tmin,
                     "l_freq": l_freq,
                     "h_freq": h_freq,
                     "kwargs_filter": kwargs_filter,
                 },
+                "tmin": tmin,
+                "duration": duration,
                 "name": name,
                 "name_cache": name_cache,
                 "mmap_mode": mmap_mode,
