@@ -27,7 +27,7 @@ def pick_channels(X, meta, picks):
             f"When using cache (name_cache is not None), picks='eeg' is ignored",
         )
 
-        return X
+        return X, meta
 
     ch_names = meta["ch_names"]
 
